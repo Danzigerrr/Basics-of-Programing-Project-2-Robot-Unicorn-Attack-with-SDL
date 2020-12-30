@@ -328,18 +328,34 @@ int main(int argc, char** argv) {
 
 
 
-	int surface_height = 300;
+		int surface_height = 300;
 
 	int horse_position_x = 45;
-	int horse_position_y = surface_height- 45;
+	int horse_position_y = surface_height - 45;
 
 	int number_of_collisions = 0;
-	
+
 	int controlling_keys = 0;
 	int mnoznik_przyspieszenia = 1;
 	int IsJumping = 0, IsFalling = 0;
 	unsigned int jump = 0;
 	int wysokosc_nad_ziemia = 0;
+	int dystans = 0;
+	int spadek = 0;
+
+
+	int przeszkoda[3][10] = { 0 };
+	for(int k=1; k<3; k++)
+	for (int i = 0; i < 10; i++)
+		przeszkoda[k][i] = k*700 + i;
+
+
+
+	int dziura[100] = { 0 };
+	for (int i = 0; i < 100; i++)
+		dziura[i] = 1000 + i;
+
+	int powtorzenie = 2;
 	while (!quit) {
 		t2 = SDL_GetTicks();
 
@@ -367,11 +383,56 @@ int main(int argc, char** argv) {
 
 		float mapx = -frames + 3200 / 2;
 
+		//tlo
 		DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-		DrawSurface(screen, eti, horse_position_x, horse_position_y);
-		DrawSurface(screen, map, mapx, surface_height);
-		//DrawRectangle(screen, 0, 300, SCREEN_WIDTH, 30, czerwony, niebieski);
 
+
+
+
+		//jednorozec
+		DrawSurface(screen, eti, horse_position_x, horse_position_y);
+
+#ifdef TEST
+		//przeszkody
+			//printf("%d    %4.2f    %d   \n", dystans+90, mapx, number_of_collisions);
+		for (int k = 1; k < 3; k++)
+			for (int i = 0; i < 10; i++)				
+			if (dystans + 90 == przeszkoda[k][i] && horse_position_y > 250 && horse_position_y < surface_height)
+			{
+				number_of_collisions++;
+				printf("Kolizjaaaaa nr %d ", number_of_collisions);
+			}
+
+			
+			
+		//dziury w podlozu
+
+		for (int i = 0; i < 100; i++)
+			if (dystans == dziura[i] && IsJumping == 0)
+			{
+				spadek = 1;
+			}
+		printf("%d     %d   \n", horse_position_y, dystans); //info
+
+		if (spadek == 1)
+		{
+			horse_position_y++;
+		}
+		if (horse_position_y == surface_height - 44 && spadek == 0) horse_position_y = surface_height - 45; //blokowanie przez podloze
+#endif
+
+
+
+
+		//mapa
+		DrawSurface(screen, map, mapx, surface_height);
+
+		//kolejna czesc mapy
+		if (mapx < -960 && mapx > -1600) {
+			int diff = 3200 + mapx;
+			DrawSurface(screen, map, diff, surface_height);
+
+		}
 
 		//printf("%4.2f \n", mapx); //info
 	
