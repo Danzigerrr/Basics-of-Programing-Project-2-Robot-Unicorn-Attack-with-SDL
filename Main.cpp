@@ -263,14 +263,7 @@ int main(int argc, char** argv) {
 
 
 
-	t1 = SDL_GetTicks();
 
-	frames = 0;
-	fpsTimer = 0;
-	fps = 0;
-	worldTime = 0;
-	distance = 0;
-	etiSpeed = 1;
 
 	begin = 0;
 	quit = 0;
@@ -311,6 +304,14 @@ while(!quit) {
 	}
 
 	//tworzenie nowej gry - inicjalizacja zmiennych
+	t1 = SDL_GetTicks();
+	frames = 0;
+	fpsTimer = 0;
+	fps = 0;
+	worldTime = 0;
+	distance = 0;
+	etiSpeed = 1;
+
 	int surface_height = 300;
 	int horse_position_x = 45;
 	int horse_position_y = surface_height - 45;
@@ -692,7 +693,7 @@ while(!quit) {
 		}
 	}
 
-	//ilosc zyc ==0 --> przejdz do menu glownego
+	////ilosc zyc ==0 --> przejdz do menu glownego
 	begin = 0;
 
 	}
