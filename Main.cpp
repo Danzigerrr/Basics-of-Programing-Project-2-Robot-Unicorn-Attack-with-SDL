@@ -59,7 +59,6 @@ void DrawSurface(SDL_Surface* screen, SDL_Surface* sprite, int x, int y) {
 
 
 // rysowanie pojedynczego pixela
-// draw a single pixel
 void DrawPixel(SDL_Surface* surface, int x, int y, Uint32 color) {
 	int bpp = surface->format->BytesPerPixel;
 	Uint8* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
@@ -92,42 +91,7 @@ void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k,
 		DrawLine(screen, x + 1, i, l - 2, 1, 0, fillColor);
 };
 
-/*void skacz(int* IsJumping, int* IsFalling, int* horse_position_y, unsigned int* jump)
-{
-	if (*IsJumping == 1) { //printf("SKACZEEEE");
-		if (*IsFalling == 1 && *jump > 0) { //spadek
-			(*horse_position_y)++;
-			(*jump)--;
-			if (*jump == 0) { //koniec skoku
-				*IsJumping = 0;
-				*IsFalling = 0;
-			}
-		}
-		else { //wznoszenie sie
-			(*jump)++;
-			(*horse_position_y)--;
-			if (*jump == MAX_JUMP_HEIGHT / 2)
-				*IsFalling = 1;
-		}
-	}
-	if (*IsJumping == 2) { //printf("DRUGI SKACZEEEE");
-		if (*IsFalling == 2 && *jump > 0) { //spadek
-			(*horse_position_y)++;
-			(*jump)--;
-			if (*jump == 0) { //koniec skoku
-				*IsJumping = 0;
-				*IsFalling = 0;
-			}
-		}
-		else { //wznoszenie sie
-			(*jump)++;
-			(*horse_position_y)--;
-			if (*jump == MAX_JUMP_HEIGHT)
-				*IsFalling = 2;
-		}
-	}
-}
-*/
+
 void zwolnienie_powierzchni(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer)
 {
 	SDL_FreeSurface(screen);
@@ -138,6 +102,12 @@ void zwolnienie_powierzchni(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window
 
 }
 
+void update_the_screen(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Renderer* renderer){
+	SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+	//		SDL_RenderClear(renderer);
+	SDL_RenderCopy(renderer, scrtex, NULL, NULL);
+	SDL_RenderPresent(renderer);
+}
 
 // main
 #ifdef __cplusplus
@@ -170,8 +140,7 @@ int main(int argc, char** argv) {
 	}
 
 	// tryb pe³noekranowy / fullscreen mode
-//	rc = SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP,
-//	                                 &window, &renderer);
+//	rc = SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &renderer);
 	rc = SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0,
 		&window, &renderer);
 	if (rc != 0) {
@@ -260,22 +229,8 @@ int main(int argc, char** argv) {
 
 
 	while (!quit) {
+
 		while (!begin) {
-			SDL_FillRect(screen, NULL, czarny);
-			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-			sprintf(text, "Wcisnij n zeby zaczac");
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-
-			SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-			//	SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-			SDL_RenderPresent(renderer);
-
-			//	//SDL_FillRect(screen, &screen->clip_rect, color);
-			//	//SDL_BlitSurface(low, &rects[animation_frame], screen, &rect);
-			//	//SDL_FillRect(screen, NULL, czarny);
-
 			while (SDL_PollEvent(&event)) {
 				switch (event.type) {
 				case SDL_KEYDOWN:
@@ -291,6 +246,20 @@ int main(int argc, char** argv) {
 					break;
 				};
 			};
+
+			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+			sprintf(text, "Wcisnij n zeby zaczac");
+			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+
+			update_the_screen(screen, scrtex, renderer);
+
+
+			//	//SDL_FillRect(screen, &screen->clip_rect, color);
+			//	//SDL_BlitSurface(low, &rects[animation_frame], screen, &rect);
+			//	//SDL_FillRect(screen, NULL, czarny);
+
+		
 		}
 
 		//tworzenie nowej gry - inicjalizacja zmiennych
@@ -353,15 +322,15 @@ int main(int argc, char** argv) {
 								if (zryw == 5) {
 									zryw = 2;
 
-									if (jump > 0){
+									if (jump > 0) {
 										IsJumping = 1;
 										IsFalling = 1;
 									}
-									if (jump == 0){
+									if (jump == 0) {
 										IsJumping = 0;
 										IsFalling = 0;
 									}
-	
+
 								}
 							}
 							else if (event.key.keysym.sym == SDLK_DOWN) {
@@ -399,7 +368,7 @@ int main(int argc, char** argv) {
 							}
 							else if (event.key.keysym.sym == SDLK_RIGHT) {
 								zryw = 3; //zryw
-								
+
 							}
 						}
 
@@ -423,44 +392,15 @@ int main(int argc, char** argv) {
 				};
 
 				t2 = SDL_GetTicks();
-
-				// w tym momencie t2-t1 to czas w milisekundach,
-				// jaki uplyna³ od ostatniego narysowania ekranu
-				// delta to ten sam czas w sekundach
-				// here t2-t1 is the time in milliseconds since
-				// the last screen was drawn
-				// delta is the same time in seconds
 				delta = (t2 - t1) * 0.001;
 				t1 = t2;
-
 				worldTime += delta;
-
 				distance += dystans * worldTime;
-
 				fpsTimer += delta;
-				//if (fpsTimer > 0.5) {
-				//		fps = frames * 2;
-				//		frames = 0;
-				//		fpsTimer -= 0.5;
-				//	};
 
-				SDL_FillRect(screen, NULL, czarny);
 
-				float mapx = -frames + 3200 / 2;
-
-				//tlo
-				DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-
-				//ilosc_zyc
-				for (int i = 0; i < ilosc_zyc; i++)
-					DrawSurface(screen, ikonka_zycia, 40 + i * 60, SCREEN_HEIGHT - 50);
-
-				//jednorozec
-				DrawSurface(screen, eti, horse_position_x, horse_position_y);
-
-#ifdef Przeszkody i dziury
-				//przeszkody
-					//printf("%d    %4.2f    %d   \n", dystans+90, mapx, number_of_collisions);
+			//przeszkody
+				//printf("%d    %4.2f    %d   \n", dystans+90, mapx, number_of_collisions);
 				for (int k = 1; k < 3; k++)
 					for (int i = 0; i < 10; i++)
 						if (dystans + 90 == przeszkoda[k][i] && horse_position_y > 250 && horse_position_y < surface_height)
@@ -469,9 +409,7 @@ int main(int argc, char** argv) {
 							printf("Kolizjaaaaa nr %d ", number_of_collisions);
 						}
 
-
-
-				//dziury w podlozu
+			//dziury w podlozu
 
 				for (int i = 0; i < 100; i++)
 					if (dystans == dziura[i] && IsJumping == 0)
@@ -480,51 +418,14 @@ int main(int argc, char** argv) {
 					}
 				printf("%d     %d   \n", horse_position_y, dystans); //info
 
-				if (spadek == 1)
-				{
-					horse_position_y++;
-				}
+				if (spadek == 1) horse_position_y++; //dziura
 				if (horse_position_y == surface_height - 44 && spadek == 0) horse_position_y = surface_height - 45; //blokowanie przez podloze
-#endif
 
 
-		//mapa
-				DrawSurface(screen, map, mapx, surface_height);
-
-				//kolejna czesc mapy
-				if (mapx < 640 - 1600 && mapx > -1600) {
-					int diff = 3200 + mapx;
-					DrawSurface(screen, map, diff, surface_height);
-
-				}
-
-
-				//if(IsJumping ==0 && horse_position_y > surface_height)
-
-				//printf("%4.2f     %d      %d \n", mapx, dystans, horse_position_x); //info
-
-
-				// tekst informacyjny / info text
-				DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-				sprintf(text, "Czas trwania = %.1lf s  %.0lf klatek / s", worldTime, fps);
-				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-				sprintf(text, "Esc - wyjscie, number_of_collisions= %d", number_of_collisions);
-				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
-
-
-
-
-
-
-				//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
-				//zryw = 2 kon jest podczas zrywu --> zryw aktywny
-				//zryw = 3 powracanie na pozycje
-				//zryw = 4 zryw sie skonczyl - mozliwy dodatkowy skok
-				//zryw = 5 kon upadl na ziemie po zakonczeniu zrywu lub dodtakowego skoku, pelna gotowosc do kolejnego zrywu
-
-				printf("%d  \n", zryw); //info
-
-
+			//zryw = 2 kon jest podczas zrywu --> zryw aktywny
+			//zryw = 3 powracanie na pozycje
+			//zryw = 4 zryw sie skonczyl - mozliwy dodatkowy skok
+			//zryw = 5 kon upadl na ziemie po zakonczeniu zrywu lub dodtakowego skoku, pelna gotowosc do kolejnego zrywu
 
 				if (zryw == 2)
 				{
@@ -545,13 +446,11 @@ int main(int argc, char** argv) {
 						horse_position_x -= ilosc_dodawanych_klatek_w_zrywie;
 						dlugosc_klatek_zrywu -= ilosc_dodawanych_klatek_w_zrywie;
 						dystans -= ilosc_dodawanych_klatek_w_zrywie;
-						
+
 					}
 					else zryw = 4;
 				}
-				
-
-				if(zryw == 4 || zryw ==5){
+				if (zryw == 4 || zryw == 5) {
 
 					//wysokosc_nad_ziemia = surface_height - horse_position_y - 45;
 					//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
@@ -617,11 +516,38 @@ int main(int argc, char** argv) {
 					jump == surface_height;
 				}
 
-				SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-				//		SDL_RenderClear(renderer);
-				SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-				SDL_RenderPresent(renderer);
 
+				float mapx = -frames + 3200 / 2;
+
+				//tlo
+				DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+
+				//ilosc_zyc
+				for (int i = 0; i < ilosc_zyc; i++)
+					DrawSurface(screen, ikonka_zycia, 40 + i * 60, SCREEN_HEIGHT - 50);
+
+				//jednorozec
+				DrawSurface(screen, eti, horse_position_x, horse_position_y);
+
+				//mapa
+				DrawSurface(screen, map, mapx, surface_height);
+
+				//kolejna czesc mapy
+				if (mapx < 640 - 1600 && mapx > -1600) {
+					int diff = 3200 + mapx;
+					DrawSurface(screen, map, diff, surface_height);
+
+				}
+
+
+				// tekst informacyjny / info text
+				DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+				sprintf(text, "Czas trwania = %.1lf s  %.0lf klatek / s", worldTime, fps);
+				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+				sprintf(text, "Esc - wyjscie, number_of_collisions= %d", number_of_collisions);
+				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
+
+				update_the_screen(screen, scrtex, renderer);
 
 				frames += mnoznik_przyspieszenia;
 				dystans += mnoznik_przyspieszenia;
@@ -686,10 +612,8 @@ int main(int argc, char** argv) {
 				sprintf(text, "Pozostalych szans na spelnienie marzen: %d. Wcisnij n zeby zaczac nowa ture gry. ", ilosc_zyc);
 				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
 
-				SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-				//		SDL_RenderClear(renderer);
-				SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-				SDL_RenderPresent(renderer);
+				update_the_screen(screen, scrtex, renderer);
+
 
 
 				if (quit == 1) {
