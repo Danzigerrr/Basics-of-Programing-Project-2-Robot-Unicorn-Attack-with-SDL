@@ -95,43 +95,33 @@ void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k,
 /*void skacz(int* IsJumping, int* IsFalling, int* horse_position_y, unsigned int* jump)
 {
 	if (*IsJumping == 1) { //printf("SKACZEEEE");
-
 		if (*IsFalling == 1 && *jump > 0) { //spadek
 			(*horse_position_y)++;
 			(*jump)--;
-
 			if (*jump == 0) { //koniec skoku
 				*IsJumping = 0;
 				*IsFalling = 0;
 			}
 		}
-
 		else { //wznoszenie sie
 			(*jump)++;
 			(*horse_position_y)--;
-
 			if (*jump == MAX_JUMP_HEIGHT / 2)
 				*IsFalling = 1;
 		}
-
 	}
-
 	if (*IsJumping == 2) { //printf("DRUGI SKACZEEEE");
-
 		if (*IsFalling == 2 && *jump > 0) { //spadek
 			(*horse_position_y)++;
 			(*jump)--;
-
 			if (*jump == 0) { //koniec skoku
 				*IsJumping = 0;
 				*IsFalling = 0;
 			}
 		}
-
 		else { //wznoszenie sie
 			(*jump)++;
 			(*horse_position_y)--;
-
 			if (*jump == MAX_JUMP_HEIGHT)
 				*IsFalling = 2;
 		}
@@ -269,434 +259,450 @@ int main(int argc, char** argv) {
 	quit = 0;
 
 
-while(!quit) {
-	while (!begin) {
-		SDL_FillRect(screen, NULL, czarny);
-		DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-		DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-		sprintf(text, "Wcisnij n zeby zaczac");
-		DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+	while (!quit) {
+		while (!begin) {
+			SDL_FillRect(screen, NULL, czarny);
+			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+			sprintf(text, "Wcisnij n zeby zaczac");
+			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
 
-		SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-		//	SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-		SDL_RenderPresent(renderer);
+			SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+			//	SDL_RenderClear(renderer);
+			SDL_RenderCopy(renderer, scrtex, NULL, NULL);
+			SDL_RenderPresent(renderer);
 
-		//	//SDL_FillRect(screen, &screen->clip_rect, color);
-		//	//SDL_BlitSurface(low, &rects[animation_frame], screen, &rect);
-		//	//SDL_FillRect(screen, NULL, czarny);
-
-		while (SDL_PollEvent(&event)) {
-			switch (event.type) {
-			case SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLK_ESCAPE) {
-					quit = 1;
-					begin = 1;
-				}
-				else if (event.key.keysym.sym == SDLK_n) begin = 1;
-				break;
-			case SDL_QUIT:
-				quit = 1;
-				begin = 1;
-				break;
-			};
-		};
-	}
-
-	//tworzenie nowej gry - inicjalizacja zmiennych
-	t1 = SDL_GetTicks();
-	frames = 0;
-	fpsTimer = 0;
-	fps = 0;
-	worldTime = 0;
-	distance = 0;
-	etiSpeed = 1;
-
-	int surface_height = 300;
-	int horse_position_x = 45;
-	int horse_position_y = surface_height - 45;
-	int number_of_collisions = 0;
-	int controlling_keys = 0;
-	int mnoznik_przyspieszenia = 1;
-	int IsJumping = 0, IsFalling = 0;
-	unsigned int jump = 0;
-	int wysokosc_nad_ziemia = 0;
-	int dystans = 0;
-	int spadek = 0;
-
-	int przeszkoda[3][10] = { 0 };
-	for (int k = 1; k < 3; k++)
-		for (int i = 0; i < 10; i++)
-			przeszkoda[k][i] = k * 700 + i;
-
-	int dziura[100] = { 0 };
-	for (int i = 0; i < 100; i++)
-		dziura[i] = 1000 + i;
-
-	int zryw = 4;
-	int dlugosc_klatek_zrywu = 0;
-	int ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
-	int ilosc_zyc = 3;
-	bool zapytanie_czy_grac_jeszcze_raz = false;
-
-	while (ilosc_zyc > 0) {
-		if (!zapytanie_czy_grac_jeszcze_raz) {
+			//	//SDL_FillRect(screen, &screen->clip_rect, color);
+			//	//SDL_BlitSurface(low, &rects[animation_frame], screen, &rect);
+			//	//SDL_FillRect(screen, NULL, czarny);
 
 			while (SDL_PollEvent(&event)) {
 				switch (event.type) {
 				case SDL_KEYDOWN:
-					if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; //wyjscie z programu
-
-					else if (event.key.keysym.sym == SDLK_d) { // zmiana ustawien sterowania
-						controlling_keys++;
-						if (controlling_keys == 2) controlling_keys = 0;
+					if (event.key.keysym.sym == SDLK_ESCAPE) {
+						quit = 1;
+						begin = 1;
 					}
-
-					else if (controlling_keys == 0) {
-						if (event.key.keysym.sym == SDLK_UP) {//skok
-							spadek = 0;
-							if (IsJumping == 0) IsJumping = 1;
-							else if (IsJumping == 1 && IsFalling == 1) IsJumping = 2;
-						}
-						else if (event.key.keysym.sym == SDLK_RIGHT) //zryw
-						{
-							if (zryw == 4) {
-								zryw = 2;
-								IsJumping = 1;
-								IsFalling = 1;
-							}
-						}
-						else if (event.key.keysym.sym == SDLK_DOWN) {
-							ilosc_zyc--; //test
-							zapytanie_czy_grac_jeszcze_raz = true;
-						}
-					}
-
-					else if (controlling_keys == 1) {
-						if (event.key.keysym.sym == SDLK_z) { //skok
-							spadek = 0;
-							if (IsJumping == 0) IsJumping = 1;
-							else if (IsJumping == 1 && IsFalling == 1) IsJumping = 2;
-						}
-
-						else if (event.key.keysym.sym == SDLK_x) //zryw
-						{
-							if (zryw == 4) {
-								zryw = 2;
-								IsJumping = 1;
-								IsFalling = 1;
-							}
-						}
-					}
-					break;
-
-				case SDL_KEYUP:
-					if (controlling_keys == 0) {
-						if (event.key.keysym.sym == SDLK_UP) { //spadanie po skoku
-							IsFalling++;
-							if (IsFalling == 3)
-								IsFalling = 2;
-							if (IsFalling == 1 && jump == 0)
-								IsFalling = 0;
-						}
-						else if (event.key.keysym.sym == SDLK_RIGHT) {
-							zryw = 3; //zryw
-						}
-					}
-
-					if (controlling_keys == 1) {
-						if (event.key.keysym.sym == SDLK_UP) { //spadanie po skoku
-							IsFalling++;
-							if (IsFalling == 3)
-								IsFalling = 2;
-							if (IsFalling == 1 && jump == 0)
-								IsFalling = 0;
-						}
-						else if (event.key.keysym.sym == SDLK_RIGHT) {
-							zryw = 3; //zryw
-						}
-					}
+					else if (event.key.keysym.sym == SDLK_n) begin = 1;
 					break;
 				case SDL_QUIT:
 					quit = 1;
+					begin = 1;
 					break;
 				};
 			};
+		}
 
-			t2 = SDL_GetTicks();
+		//tworzenie nowej gry - inicjalizacja zmiennych
+		t1 = SDL_GetTicks();
+		frames = 0;
+		fpsTimer = 0;
+		fps = 0;
+		worldTime = 0;
+		distance = 0;
+		etiSpeed = 1;
 
-			// w tym momencie t2-t1 to czas w milisekundach,
-			// jaki uplyna³ od ostatniego narysowania ekranu
-			// delta to ten sam czas w sekundach
-			// here t2-t1 is the time in milliseconds since
-			// the last screen was drawn
-			// delta is the same time in seconds
-			delta = (t2 - t1) * 0.001;
-			t1 = t2;
+		int surface_height = 300;
+		int horse_position_x = 45;
+		int horse_position_y = surface_height - 45;
+		int number_of_collisions = 0;
+		int controlling_keys = 0;
+		int mnoznik_przyspieszenia = 1;
+		int IsJumping = 0, IsFalling = 0;
+		unsigned int jump = 0;
+		int wysokosc_nad_ziemia = 0;
+		int dystans = 0;
+		int spadek = 0;
 
-			worldTime += delta;
+		int przeszkoda[3][10] = { 0 };
+		for (int k = 1; k < 3; k++)
+			for (int i = 0; i < 10; i++)
+				przeszkoda[k][i] = k * 700 + i;
 
-			distance += dystans * worldTime;
+		int dziura[100] = { 0 };
+		for (int i = 0; i < 100; i++)
+			dziura[i] = 1000 + i;
 
-			fpsTimer += delta;
-			//if (fpsTimer > 0.5) {
-			//		fps = frames * 2;
-			//		frames = 0;
-			//		fpsTimer -= 0.5;
-			//	};
+		int zryw = 5;
+		int dlugosc_klatek_zrywu = 0;
+		int ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
+		int ilosc_zyc = 3;
+		bool zapytanie_czy_grac_jeszcze_raz = false;
 
-			SDL_FillRect(screen, NULL, czarny);
+		while (ilosc_zyc > 0) {
+			if (!zapytanie_czy_grac_jeszcze_raz) {
 
-			float mapx = -frames + 3200 / 2;
+				while (SDL_PollEvent(&event)) {
+					switch (event.type) {
+					case SDL_KEYDOWN:
+						if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; //wyjscie z programu
 
-			//tlo
-			DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+						else if (event.key.keysym.sym == SDLK_d) { // zmiana ustawien sterowania
+							controlling_keys++;
+							if (controlling_keys == 2) controlling_keys = 0;
+						}
 
-			//ilosc_zyc
-			for (int i = 0; i < ilosc_zyc; i++)
-				DrawSurface(screen, ikonka_zycia, 40 + i * 60, SCREEN_HEIGHT - 50);
+						else if (controlling_keys == 0) {
+							if (event.key.keysym.sym == SDLK_UP) {//skok
+								spadek = 0;
+								if (IsJumping == 0) IsJumping = 1;
+								else if (IsJumping == 1 && IsFalling == 1) IsJumping = 2;
+							}
+							else if (event.key.keysym.sym == SDLK_RIGHT) //zryw
+							{
+								if (zryw == 5) {
+									zryw = 2;
 
-			//jednorozec
-			DrawSurface(screen, eti, horse_position_x, horse_position_y);
+									if (jump > 0){
+										IsJumping = 1;
+										IsFalling = 1;
+									}
+									if (jump == 0){
+										IsJumping = 0;
+										IsFalling = 0;
+									}
+	
+								}
+							}
+							else if (event.key.keysym.sym == SDLK_DOWN) {
+								ilosc_zyc--; //test
+								zapytanie_czy_grac_jeszcze_raz = true;
+							}
+						}
 
-	#ifdef Przeszkody i dziury
-			//przeszkody
-				//printf("%d    %4.2f    %d   \n", dystans+90, mapx, number_of_collisions);
-			for (int k = 1; k < 3; k++)
-				for (int i = 0; i < 10; i++)
-					if (dystans + 90 == przeszkoda[k][i] && horse_position_y > 250 && horse_position_y < surface_height)
+						else if (controlling_keys == 1) {
+							if (event.key.keysym.sym == SDLK_z) { //skok
+								spadek = 0;
+								if (IsJumping == 0) IsJumping = 1;
+								else if (IsJumping == 1 && IsFalling == 1) IsJumping = 2;
+							}
+
+							else if (event.key.keysym.sym == SDLK_x) //zryw
+							{
+								if (zryw == 4) {
+									zryw = 2;
+									IsJumping = 1;
+									IsFalling = 1;
+								}
+							}
+						}
+						break;
+
+					case SDL_KEYUP:
+						if (controlling_keys == 0) {
+							if (event.key.keysym.sym == SDLK_UP) { //spadanie po skoku
+								IsFalling++;
+								if (IsFalling == 3)
+									IsFalling = 2;
+								if (IsFalling == 1 && jump == 0)
+									IsFalling = 0;
+							}
+							else if (event.key.keysym.sym == SDLK_RIGHT) {
+								zryw = 3; //zryw
+								
+							}
+						}
+
+						if (controlling_keys == 1) {
+							if (event.key.keysym.sym == SDLK_UP) { //spadanie po skoku
+								IsFalling++;
+								if (IsFalling == 3)
+									IsFalling = 2;
+								if (IsFalling == 1 && jump == 0)
+									IsFalling = 0;
+							}
+							else if (event.key.keysym.sym == SDLK_RIGHT) {
+								zryw = 3; //zryw
+							}
+						}
+						break;
+					case SDL_QUIT:
+						quit = 1;
+						break;
+					};
+				};
+
+				t2 = SDL_GetTicks();
+
+				// w tym momencie t2-t1 to czas w milisekundach,
+				// jaki uplyna³ od ostatniego narysowania ekranu
+				// delta to ten sam czas w sekundach
+				// here t2-t1 is the time in milliseconds since
+				// the last screen was drawn
+				// delta is the same time in seconds
+				delta = (t2 - t1) * 0.001;
+				t1 = t2;
+
+				worldTime += delta;
+
+				distance += dystans * worldTime;
+
+				fpsTimer += delta;
+				//if (fpsTimer > 0.5) {
+				//		fps = frames * 2;
+				//		frames = 0;
+				//		fpsTimer -= 0.5;
+				//	};
+
+				SDL_FillRect(screen, NULL, czarny);
+
+				float mapx = -frames + 3200 / 2;
+
+				//tlo
+				DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+
+				//ilosc_zyc
+				for (int i = 0; i < ilosc_zyc; i++)
+					DrawSurface(screen, ikonka_zycia, 40 + i * 60, SCREEN_HEIGHT - 50);
+
+				//jednorozec
+				DrawSurface(screen, eti, horse_position_x, horse_position_y);
+
+#ifdef Przeszkody i dziury
+				//przeszkody
+					//printf("%d    %4.2f    %d   \n", dystans+90, mapx, number_of_collisions);
+				for (int k = 1; k < 3; k++)
+					for (int i = 0; i < 10; i++)
+						if (dystans + 90 == przeszkoda[k][i] && horse_position_y > 250 && horse_position_y < surface_height)
+						{
+							number_of_collisions++;
+							printf("Kolizjaaaaa nr %d ", number_of_collisions);
+						}
+
+
+
+				//dziury w podlozu
+
+				for (int i = 0; i < 100; i++)
+					if (dystans == dziura[i] && IsJumping == 0)
 					{
-						number_of_collisions++;
-						printf("Kolizjaaaaa nr %d ", number_of_collisions);
+						spadek = 1;
 					}
+				printf("%d     %d   \n", horse_position_y, dystans); //info
 
-
-
-			//dziury w podlozu
-
-			for (int i = 0; i < 100; i++)
-				if (dystans == dziura[i] && IsJumping == 0)
+				if (spadek == 1)
 				{
-					spadek = 1;
+					horse_position_y++;
 				}
-			printf("%d     %d   \n", horse_position_y, dystans); //info
-
-			if (spadek == 1)
-			{
-				horse_position_y++;
-			}
-			if (horse_position_y == surface_height - 44 && spadek == 0) horse_position_y = surface_height - 45; //blokowanie przez podloze
-	#endif
+				if (horse_position_y == surface_height - 44 && spadek == 0) horse_position_y = surface_height - 45; //blokowanie przez podloze
+#endif
 
 
-			//mapa
-			DrawSurface(screen, map, mapx, surface_height);
+		//mapa
+				DrawSurface(screen, map, mapx, surface_height);
 
-			//kolejna czesc mapy
-			if (mapx < 640 - 1600 && mapx > -1600) {
-				int diff = 3200 + mapx;
-				DrawSurface(screen, map, diff, surface_height);
-
-			}
-
-
-			//if(IsJumping ==0 && horse_position_y > surface_height)
-
-			//printf("%4.2f     %d      %d \n", mapx, dystans, horse_position_x); //info
-
-
-			// tekst informacyjny / info text
-			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-			sprintf(text, "Czas trwania = %.1lf s  %.0lf klatek / s", worldTime, fps);
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-			sprintf(text, "Esc - wyjscie, number_of_collisions= %d", number_of_collisions);
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
-
-
-
-
-
-
-			//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
-			//zryw =2 zryw jest aktywny
-			//zryw =3 zryw sie skonczyl - mozliwy dodatkowy skok
-			//zryw =4 kon upadl na ziemie po zakonczeniu zrywu lub dodtakowego skoku
-
-
-
-
-
-			if (zryw == 2)
-			{
-				if (dlugosc_klatek_zrywu < 100)
-				{
-					horse_position_x += ilosc_dodawanych_klatek_w_zrywie;
-					dlugosc_klatek_zrywu += ilosc_dodawanych_klatek_w_zrywie;
-					dystans += ilosc_dodawanych_klatek_w_zrywie;
+				//kolejna czesc mapy
+				if (mapx < 640 - 1600 && mapx > -1600) {
+					int diff = 3200 + mapx;
+					DrawSurface(screen, map, diff, surface_height);
 
 				}
-				else {
-					zryw = 3;
+
+
+				//if(IsJumping ==0 && horse_position_y > surface_height)
+
+				//printf("%4.2f     %d      %d \n", mapx, dystans, horse_position_x); //info
+
+
+				// tekst informacyjny / info text
+				DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+				sprintf(text, "Czas trwania = %.1lf s  %.0lf klatek / s", worldTime, fps);
+				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+				sprintf(text, "Esc - wyjscie, number_of_collisions= %d", number_of_collisions);
+				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
+
+
+
+
+
+
+				//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
+				//zryw = 2 kon jest podczas zrywu --> zryw aktywny
+				//zryw = 3 powracanie na pozycje
+				//zryw = 4 zryw sie skonczyl - mozliwy dodatkowy skok
+				//zryw = 5 kon upadl na ziemie po zakonczeniu zrywu lub dodtakowego skoku, pelna gotowosc do kolejnego zrywu
+
+				printf("%d  \n", zryw); //info
+
+
+
+				if (zryw == 2)
+				{
+					if (dlugosc_klatek_zrywu < 100)
+					{
+						horse_position_x += ilosc_dodawanych_klatek_w_zrywie;
+						dlugosc_klatek_zrywu += ilosc_dodawanych_klatek_w_zrywie;
+						dystans += ilosc_dodawanych_klatek_w_zrywie;
+
+					}
+					else {
+						zryw = 3;
+					}
+				}
+				if (zryw == 3) {
+					if (dlugosc_klatek_zrywu > 0)
+					{
+						horse_position_x -= ilosc_dodawanych_klatek_w_zrywie;
+						dlugosc_klatek_zrywu -= ilosc_dodawanych_klatek_w_zrywie;
+						dystans -= ilosc_dodawanych_klatek_w_zrywie;
+						
+					}
+					else zryw = 4;
+				}
+				
+
+				if(zryw == 4 || zryw ==5){
+
+					//wysokosc_nad_ziemia = surface_height - horse_position_y - 45;
+					//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
+
+					if (IsJumping != 0)  //skacz(&IsJumping, &IsFalling, &horse_position_y, &jump);
+					{
+						if (IsJumping == 1) { //printf("SKACZEEEE");
+
+							if (IsFalling == 1 && jump > 0) { //spadek
+								(horse_position_y)++;
+								(jump)--;
+
+								if (jump == 0) { //koniec skoku
+									IsJumping = 0;
+									IsFalling = 0;
+									zryw = 5;
+								}
+							}
+
+							else { //wznoszenie sie
+								(jump)++;
+								(horse_position_y)--;
+
+								if (jump == MAX_JUMP_HEIGHT / 2)
+									IsFalling = 1;
+							}
+
+						}
+
+						if (IsJumping == 2) { //printf("DRUGI SKACZEEEE");
+
+							if (IsFalling == 2 && jump > 0) { //spadek
+								(horse_position_y)++;
+								(jump)--;
+
+								if (jump == 0) { //koniec skoku
+									IsJumping = 0;
+									IsFalling = 0;
+									zryw = 5;
+								}
+							}
+
+							else { //wznoszenie sie
+								(jump)++;
+								(horse_position_y)--;
+
+								if (jump == MAX_JUMP_HEIGHT)
+									IsFalling = 2;
+							}
+						}
+					}
+					else
+						zryw = 5;
+
+
+
+				}
+
+				if (horse_position_y == 0)//zablokowanie skoku wychodzacego po za gre
+				{
+					IsJumping = 2;
+					IsFalling = 2;
+					jump == surface_height;
+				}
+
+				SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+				//		SDL_RenderClear(renderer);
+				SDL_RenderCopy(renderer, scrtex, NULL, NULL);
+				SDL_RenderPresent(renderer);
+
+
+				frames += mnoznik_przyspieszenia;
+				dystans += mnoznik_przyspieszenia;
+
+				if (frames > 3200) {
+					frames = 0;
+					//mnoznik_przyspieszenia += 1;
+					//ilosc_dodawanych_klatek_w_zrywie += mnoznik_przyspieszenia;
+
+					for (int k = 1; k < 3; k++)
+						for (int i = 0; i < 10; i++) przeszkoda[k][i] = k * 700 + i + dystans;
+
+					for (int i = 0; i < 100; i++) dziura[i] = 1000 + i + dystans;
+
+				}
+
+
+				if (quit == 1) {
+					zwolnienie_powierzchni(screen, scrtex, window, renderer);
+					return 0;
 				}
 			}
 			else {
+				while (SDL_PollEvent(&event)) {
+					switch (event.type) {
+					case SDL_KEYDOWN:
+						if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; //wyjscie z programu
 
-				if (dlugosc_klatek_zrywu > 0)
-				{
-					horse_position_x -= ilosc_dodawanych_klatek_w_zrywie;
-					dlugosc_klatek_zrywu -= ilosc_dodawanych_klatek_w_zrywie;
-					dystans -= ilosc_dodawanych_klatek_w_zrywie;
-				}
+						else if (event.key.keysym.sym == SDLK_n) //nowa gra
+						{
+							zapytanie_czy_grac_jeszcze_raz = false;
+							frames = 0;
+							jump = 0;
+							horse_position_x = 45;
+							horse_position_y = surface_height - 45;
+							number_of_collisions = 0;
+							mnoznik_przyspieszenia = 1;
+							IsJumping = 0;
+							IsFalling = 0;
+							jump = 0;
+							wysokosc_nad_ziemia = 0;
+							dystans = 0;
+							spadek = 0;
 
-				//wysokosc_nad_ziemia = surface_height - horse_position_y - 45;
-				//printf("jump: %d IsJumping: %d IsFalling: %d horse_position_y: %d \n", jump, IsJumping, IsFalling, horse_position_y); //info
+							for (int k = 1; k < 3; k++)
+								for (int i = 0; i < 10; i++)
+									przeszkoda[k][i] = k * 700 + i;
 
-				if (IsJumping != 0)  //skacz(&IsJumping, &IsFalling, &horse_position_y, &jump);
-				{
-					if (IsJumping == 1) { //printf("SKACZEEEE");
+							for (int i = 0; i < 100; i++)
+								dziura[i] = 1000 + i;
 
-						if (IsFalling == 1 && jump > 0) { //spadek
-							(horse_position_y)++;
-							(jump)--;
-
-							if (jump == 0) { //koniec skoku
-								IsJumping = 0;
-								IsFalling = 0;
-								zryw = 4;
-							}
+							zryw = 5;
+							dlugosc_klatek_zrywu = 0;
+							ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
 						}
-
-						else { //wznoszenie sie
-							(jump)++;
-							(horse_position_y)--;
-
-							if (jump == MAX_JUMP_HEIGHT / 2)
-								IsFalling = 1;
-						}
-
-					}
-
-					if (IsJumping == 2) { //printf("DRUGI SKACZEEEE");
-
-						if (IsFalling == 2 && jump > 0) { //spadek
-							(horse_position_y)++;
-							(jump)--;
-
-							if (jump == 0) { //koniec skoku
-								IsJumping = 0;
-								IsFalling = 0;
-								zryw = 4;
-							}
-						}
-
-						else { //wznoszenie sie
-							(jump)++;
-							(horse_position_y)--;
-
-							if (jump == MAX_JUMP_HEIGHT)
-								IsFalling = 2;
-						}
-					}
-
-
-
-				}
-			}
-
-			if (horse_position_y == 0)//zablokowanie lagow wychodzenia po za gre
-			{
-				IsJumping = 2;
-				IsFalling = 2;
-				jump == surface_height;
-			}
-
-			SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-			//		SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-			SDL_RenderPresent(renderer);
-
-
-			frames += mnoznik_przyspieszenia;
-			dystans += mnoznik_przyspieszenia;
-
-			if (frames > 3200) {
-				frames = 0;
-				//mnoznik_przyspieszenia += 1;
-				//ilosc_dodawanych_klatek_w_zrywie += mnoznik_przyspieszenia;
-
-				for (int k = 1; k < 3; k++)
-					for (int i = 0; i < 10; i++) przeszkoda[k][i] = k * 700 + i + dystans;
-
-				for (int i = 0; i < 100; i++) dziura[i] = 1000 + i + dystans;
-
-			}
-
-
-			if (quit == 1) {
-				zwolnienie_powierzchni(screen, scrtex, window, renderer);
-				return 0;
-			}
-			}
-		else {
-			while (SDL_PollEvent(&event)) {
-				switch (event.type) {
-				case SDL_KEYDOWN:
-					if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; //wyjscie z programu
-
-					else if (event.key.keysym.sym == SDLK_n) //nowa gra
-					{
-						zapytanie_czy_grac_jeszcze_raz = false;
-						frames = 0;
-						jump = 0;
-						horse_position_x = 45;
-						horse_position_y = surface_height - 45;
-						number_of_collisions = 0;
-						mnoznik_przyspieszenia = 1;
-						IsJumping = 0;
-						IsFalling = 0;
-						jump = 0;
-						wysokosc_nad_ziemia = 0;
-						dystans = 0;
-						spadek = 0;
-
-						for (int k = 1; k < 3; k++)
-							for (int i = 0; i < 10; i++)
-								przeszkoda[k][i] = k * 700 + i;
-
-						for (int i = 0; i < 100; i++)
-							dziura[i] = 1000 + i;
-
-						zryw = 4;
-						dlugosc_klatek_zrywu = 0;
-						ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
-					}
-				break;
+						break;
+					};
 				};
-			};
 
-			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-			sprintf(text, "Pozostalych szans na spelnienie marzen: %d. Wcisnij n zeby zaczac nowa ture gry. ", ilosc_zyc);
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+				DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+				DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+				sprintf(text, "Pozostalych szans na spelnienie marzen: %d. Wcisnij n zeby zaczac nowa ture gry. ", ilosc_zyc);
+				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
 
-			SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-			//		SDL_RenderClear(renderer);
-			SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-			SDL_RenderPresent(renderer);
+				SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+				//		SDL_RenderClear(renderer);
+				SDL_RenderCopy(renderer, scrtex, NULL, NULL);
+				SDL_RenderPresent(renderer);
 
 
-			if (quit == 1) {
-				zwolnienie_powierzchni(screen, scrtex, window, renderer);
-				return 0;
+				if (quit == 1) {
+					zwolnienie_powierzchni(screen, scrtex, window, renderer);
+					return 0;
+				}
+
 			}
-
 		}
-	}
 
-	////ilosc zyc ==0 --> przejdz do menu glownego
-	begin = 0;
+		////ilosc zyc ==0 --> przejdz do menu glownego
+		begin = 0;
 
 	}
 
 }
-
