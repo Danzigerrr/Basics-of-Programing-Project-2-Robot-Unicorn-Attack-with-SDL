@@ -378,39 +378,40 @@ struct positions {
 	SDL_Rect doplhins;
 };
 
-void setInitialPositions(positions* Init);
-
-void createSprites(positions* Init, SpriteSet* sprite, int backgroundColor);
-
+int initializeSDL();
+int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int* rc);
 int checkSurface(SDL_Surface* surface, SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer);
 
-int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int *rc) {
-	if (*rc != 0) {
-		SDL_Quit();
-		printf("SDL_CreateWindowAndRenderer error: %s\n", SDL_GetError());
-		return 1;
-	};
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-	SDL_RenderSetLogicalSize(renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_SetWindowTitle(window, "Robot Unicorn Attack");
-	SDL_ShowCursor(SDL_DISABLE);
+void setInitialPositions(positions* Init);
+void createSprites(positions* Init, SpriteSet* sprite, int backgroundColor);
+
+
+void SDL_EventBegin(SDL_Event event, bool *begin, bool *quit ) {
+
+	
+		switch (event.type) {
+		case SDL_KEYDOWN:
+			if (event.key.keysym.sym == SDLK_ESCAPE) {
+				*quit = true;
+				*begin = true;
+			}
+			else if (event.key.keysym.sym == SDLK_n) *begin = true;
+			break;
+
+		case SDL_QUIT:
+			*quit = true;
+			*begin = true;
+			break;
+
+		};
+	
 }
-
-int initializeSDL() {
-	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-		printf("SDL_Init error: %s\n", SDL_GetError());
-		return 1;
-	}
-}
-
-
 
 #ifdef __cplusplus
 extern "C"
 #endif
 int main(int argc, char** argv) {
-	int t1, t2, begin, quit, frames, rc;
+	int t1, t2, frames, rc;
 	double delta, worldTime, fpsTimer, fps, distance, etiSpeed;
 	SDL_Event event;
 	SDL_Surface* screen, * charset, * click_to_play,  * tlo_tecza, * map, * ikonka_zycia, * wrozki, * znaczek_eti, * star, * stalaktyt, * dziuraa, * grass, * ziemniaki, *niebo;
@@ -457,8 +458,8 @@ int main(int argc, char** argv) {
 
 #ifndef zmienne animacje
 
-	begin = 0;
-	quit = 0;
+	bool begin = false;
+	bool quit = false;
 	bool control_with_arrows = true;
 
 	int dlugosc_animacji_rozbijania = 0;
@@ -487,46 +488,24 @@ int main(int argc, char** argv) {
 #endif
 
 	positions Init;
-
 	setInitialPositions(&Init);
 
 	SpriteSet sprite;
-
 	createSprites(&Init, &sprite, czarny);
-	
-
 	
 	while (!quit) {
 
 		while (!begin) {
-			zmierz_czas(&t1, &delta, &worldTime);
+			while (SDL_PollEvent(&event)) 
+			SDL_EventBegin(event, &begin, &quit);
 
-			while (SDL_PollEvent(&event)) {
-				switch (event.type) {
-				case SDL_KEYDOWN:
-					if (event.key.keysym.sym == SDLK_ESCAPE) {
-						quit = 1;
-						begin = 1;
-					}
-					else if (event.key.keysym.sym == SDLK_n) begin = 1;
-				break;
-
-				case SDL_QUIT:
-					quit = 1;
-					begin = 1;
-				break;
-
-				};
-			};
 			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
 			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
+
 			sprintf(text, "Witamy w grze Robot Unicorn Attack!");
 			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
 			sprintf(text, "Wcisnij n zeby spelnić swoje marzenia!");
 			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
-
-			/*DrawRectangle(screen, unicorn.obszar.x, unicorn.obszar.y, unicorn.obszar.w, unicorn.obszar.h, zielony, czerwony);
-			unicorn.obszar.animate(delta, 9, screen);*/
 
 			update_the_screen(screen, scrtex, renderer);
 		}
@@ -577,7 +556,7 @@ int main(int argc, char** argv) {
 					while (SDL_PollEvent(&event)) {
 						switch (event.type) {
 						case SDL_KEYDOWN:
-							if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; //wyjscie z programu
+							if (event.key.keysym.sym == SDLK_ESCAPE) quit = true; //wyjscie z programu
 
 							else if (event.key.keysym.sym == SDLK_d) { // zmiana ustawien sterowania
 								if (control_with_arrows) control_with_arrows = false;
@@ -670,7 +649,7 @@ int main(int argc, char** argv) {
 							}
 							break;
 						case SDL_QUIT:
-							quit = 1;
+							quit = true;
 							break;
 						};
 					};
@@ -683,7 +662,6 @@ int main(int argc, char** argv) {
 					//tlo
 					DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
 
-					//lives
 					for (int i = 0; i < lives; i++)
 					DrawSurface(screen, ikonka_zycia, i*60 + 40, SCREEN_HEIGHT - 50);
 
@@ -1136,7 +1114,7 @@ int main(int argc, char** argv) {
 				}
 
 
-				if (quit == 1) {
+				if (quit) {
 					zwolnienie_powierzchni(screen, scrtex, window, renderer);
 					return 0;
 				}
@@ -1145,35 +1123,26 @@ int main(int argc, char** argv) {
 				while (SDL_PollEvent(&event)) {
 					switch (event.type) {
 					case SDL_KEYDOWN:
-						//wyjscie z programu
-						if (event.key.keysym.sym == SDLK_ESCAPE) quit = 1; 
+						if (event.key.keysym.sym == SDLK_ESCAPE) quit = true; 
 
 						//nowa gra
 						else if (event.key.keysym.sym == SDLK_n) {
 							sprite_over = false;
 							frames = 0;
+							punkty = 0;
 							mnoznik_przyspieszenia = 1;
 							jump = 0;
 							isJumping = 0;
 							isFalling = 0;
-							
-					
 
-							
 							kolejna_gwiazda_rozbita = 0;
 							kolejna_wrozka_zebrana = 0;
-
 
 							zryw = 5;
 							dlugosc_klatek_zrywu = 0;
 							ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
 
-
-							punkty = 0;
-
-							
-							sprite.unicorn.obszar.x = SZEROKOSC_KONIA / 2 - 35;
-							sprite.unicorn.obszar.y = SURFACE_HEIGHT - SZEROKOSC_KONIA / 2 - 25;
+							createSprites(&Init, &sprite, czarny);
 
 							srand((unsigned)time(0));
 							losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
@@ -1182,8 +1151,8 @@ int main(int argc, char** argv) {
 					break;
 
 					case SDL_QUIT:
-						quit = 1;
-						begin = 1;
+						quit = true;
+						begin = true;
 					break;
 
 					};
@@ -1200,7 +1169,7 @@ int main(int argc, char** argv) {
 
 				update_the_screen(screen, scrtex, renderer);
 
-				if (quit == 1) {
+				if (quit) {
 					zwolnienie_powierzchni(screen, scrtex, window, renderer);
 					return 0;
 				}
@@ -1209,11 +1178,32 @@ int main(int argc, char** argv) {
 		}
 
 		////ilosc zyc ==0 --> przejdz do menu glownego
-		begin = 0;
+		begin = false;
 
 	}
 
 }
+
+int initializeSDL() {
+	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+		printf("SDL_Init error: %s\n", SDL_GetError());
+		return 1;
+	}
+}
+
+int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int* rc) {
+	if (*rc != 0) {
+		SDL_Quit();
+		printf("SDL_CreateWindowAndRenderer error: %s\n", SDL_GetError());
+		return 1;
+	};
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	SDL_RenderSetLogicalSize(renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+	SDL_SetWindowTitle(window, "Robot Unicorn Attack");
+	SDL_ShowCursor(SDL_DISABLE);
+}
+
 
 int checkSurface(SDL_Surface* surface, SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer) {
 	if (surface == NULL) {
