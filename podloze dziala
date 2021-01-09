@@ -761,10 +761,9 @@ int main(int argc, char** argv) {
 					
 					//handleFairyEvents(&game, &SDL, &UnicornVar, &sprite);
 
-					handleStalactitesEvents(&game, &SDL, &UnicornVar, &sprite);
+					//handleStalactitesEvents(&game, &SDL, &UnicornVar, &sprite);
 
 #ifndef	podl
-					//dodatkowe podloze
 					for (int k = 1; k <= ILOSC_DOD_PODLOZA; k++) {
 
 						//spadl_na_dodatkowe_podloze
@@ -775,26 +774,20 @@ int main(int argc, char** argv) {
 						int start_showing = k * ODL_POM_DOD_PODLOZAMI;
 						int end_showing = k * ODL_POM_DOD_PODLOZAMI +SCREEN_WIDTH + SZEROKOSC_DOD_PODLOZA;
 
-
-
 						if (start_showing < game.frames && game.frames < end_showing) {
-							int X = start_showing +SCREEN_WIDTH - game.frames;
+							int X = start_showing + SCREEN_WIDTH - game.frames;
 							int Y = SURFACE_HEIGHT - WYSOKOSC_DODATKOWEGO_PODLOZA - (k - 1) * ROZNICA_POZIOMOW_MIEDZY_DOD_PODLOZAMI + game.wartosc_kamera;
 							sprite.platforms.setNewRectsPosition(X, Y, k);
 							
-							SDL_BlitSurface(sprite.platforms.obraz, NULL,SDL.screen, &sprite.platforms.obszar[k]);
-							/*printf("%d %d %d %d\n", sprite.platforms.obszar[k].x, sprite.platforms.obszar[k].y,
-								sprite.platforms.obszar[k].w, sprite.platforms.obszar[k].h);*/
-							//DrawRectangle(screen, sprite.platforms.obszar[k].x, sprite.platforms.obszar[k].y, sprite.platforms.obszar[k].w, sprite.platforms.obszar[k].h, zielony, niebieski);
+							SDL_BlitSurface(sprite.platforms.obraz, NULL, SDL.screen, &sprite.platforms.obszar[k]);
+
 							int granica = WYSOKOSC_DODATKOWEGO_PODLOZA - 2 + (k - 1) * ROZNICA_POZIOMOW_MIEDZY_DOD_PODLOZAMI - game.wartosc_kamera;
 							printf(" %d %d \n", UnicornVar.jump, granica);
 							if (UnicornVar.spadl_na_dodatkowe_podloze == 0 && SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.platforms.obszar[k])) {
 								if (UnicornVar.jump < granica) {
 									printf("zderzenie czolowe dodatkowe podloze \n");
 									game.explosion_animation = true;
-									 
 								}
-
 								else {
 									UnicornVar.jump = 0;
 									UnicornVar.isFalling = 0;
@@ -802,94 +795,75 @@ int main(int argc, char** argv) {
 									UnicornVar.spadl_na_dodatkowe_podloze = 1;
 								}
 							}
-
 							if (end_showing - game.frames <= 2 * UnicornVar.mnoznik_przyspieszenia) {
-
-								if (UnicornVar.spadl_na_dodatkowe_podloze == 1) UnicornVar.jump += WYSOKOSC_DODATKOWEGO_PODLOZA + (k - 1) * ROZNICA_POZIOMOW_MIEDZY_DOD_PODLOZAMI - game.wartosc_kamera;
+								if (UnicornVar.spadl_na_dodatkowe_podloze == 1) UnicornVar.jump += granica + 2;
 
 								UnicornVar.spadl_na_dodatkowe_podloze = 2;
 							}
 						}
 					}
-					
-					if (UnicornVar.spadl_na_dodatkowe_podloze == 2 && UnicornVar.jump >= 0 &&UnicornVar.isJumping == 0) {
-						if (UnicornVar.jump == 0) UnicornVar.spadl_na_dodatkowe_podloze = 0;
-						else {
-							unicornIsFalling(&game, &SDL, &UnicornVar, &sprite);
-						}
+					if (UnicornVar.spadl_na_dodatkowe_podloze == 2 && UnicornVar.jump >= 0 && UnicornVar.isJumping == 0) {
+						 unicornIsFalling(&game, &SDL, &UnicornVar, &sprite);
+						 if (UnicornVar.jump == 0) UnicornVar.spadl_na_dodatkowe_podloze = 0;
 					}
 #endif
-#ifdef	dziura
+#ifndef	dziura
 				//dziury w podlozu
 					
 
 					for (int k = 1; k <= ILOSC_DZIUR; k++) {
 						int start_showing = k * ODL_POM_DZIURAMI;
-						int end_showing = k * ODL_POM_DZIURAMI +SCREEN_WIDTH + SZEROKOSC_DZIURY;
+						int end_showing = k * ODL_POM_DZIURAMI + SCREEN_WIDTH + SZEROKOSC_DZIURY;
 
 						
-						if (start_showing < frames && frames < end_showing) {
-
-							int X =  start_showing +SCREEN_WIDTH - frames;
+						if (start_showing < game.frames && game.frames < end_showing) {
+							int X =  start_showing +SCREEN_WIDTH - game.frames;
 							int Y = SURFACE_HEIGHT - 1;
 							sprite.holes.setNewRectsPosition(X, Y, k);
 
-							if (frames < end_showing) {
-
-								if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holes.obszar[k]) &&UnicornVar.isJumping == 0) {
+							if (game.frames < end_showing) {
+								if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holes.obszar[k]) && UnicornVar.isJumping == 0) {
 									sprite.unicorn.changeRectPosition(0, 1);
-									jump--;
+									UnicornVar.jump--;
 								}
-								//DrawRectangle(screen, hole[k].x, hole[k].y, hole[k].w, hole[k].h, niebieski, czerwony);
 							}
-
 							SDL_BlitSurface(sprite.holes.obraz, NULL,SDL.screen, &sprite.holes.obszar[k]);
-
-							
 						}
 
 						// zderzenie z poczatkiem terenu za dziura
-						if (end_showing - SZEROKOSC_DZIURY < frames && frames < end_showing + SZEROKOSC_DZIURY) {
-							int X = start_showing +SCREEN_WIDTH - frames + SZEROKOSC_DZIURY + 20;
+						if (end_showing - SZEROKOSC_DZIURY < game.frames && game.frames < end_showing + SZEROKOSC_DZIURY) {
+							int X = start_showing + SCREEN_WIDTH - game.frames + SZEROKOSC_DZIURY + 20;
 							int Y = SURFACE_HEIGHT + GRUBOSC_PODLOZA / 2;
-
 							sprite.holeend.setNewRectsPosition(X, Y, k);
-
 							if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holeend.obszar[k])) {
 								game.explosion_animation = true;
 								 
 								printf("koniec dziury\n");
 							}
-							//DrawRectangle(screen, hole_end[k].x, hole_end[k].y, hole_end[k].w, hole_end[k].h, niebieski, zielony);
 						}
 
 						//spadniecie na dolny koniec ekranu
 						if (UnicornVar.jump == -160) {
-							show_game_over = true;
-							lives--;
-							printf("dno \n");
+							UnicornVar.show_game_over = true;
+							UnicornVar.lives--;
 						}
 					}
 					
 
 #endif
-#ifdef delfiny
+#ifndef delfiny
 					for(int k=1;k<=ILOSC_DELFINOW; k++)
 						if (UnicornVar.punkty > k * ILOSC_PUNKTOW_NA_DELFINA) {
-							
 							sprite.doplhins.changeRectsPosition(1, 0, k);
-							
 
-							if(sprite.doplhins.obszar[k].x<SCREEN_WIDTH/2) sprite.doplhins.changeRectsPosition(0, -1, k);
+							if(sprite.doplhins.obszar[k].x < SCREEN_WIDTH/2) sprite.doplhins.changeRectsPosition(0, -1, k);
 							else sprite.doplhins.changeRectsPosition(0, 1, k);
 
 							if (sprite.doplhins.obszar[k].x ==SCREEN_WIDTH) {
 								bool zeroTimers = true;
 								sprite.doplhins.setNewRectsPosition(0,SCREEN_HEIGHT, k , zeroTimers);
 							}
-
 							sprite.doplhins.animateMultipleRects(0.35,game.delta,SDL.screen,1,k);
-
 						}
 
 #endif
