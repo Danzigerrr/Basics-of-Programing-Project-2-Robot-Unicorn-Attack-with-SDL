@@ -54,114 +54,141 @@ extern "C" {
 
 #define numberOfHorseAnimations 6
 #define numberOfDolphinsAnimations 5
-#ifndef funkcje
 
 
-// narysowanie napisu txt na powierzchni screen, zaczynaj¹c od punktu (x, y)
-// charset to bitmapa 128x128 zawieraj¹ca znaki
-// draw a text txt on surface screen, starting from the point (x, y)
-// charset is a 128x128 bitmap containing character images
-void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface* charset) {
-	int px, py, c;
-	SDL_Rect s, d;
-	s.w = 8;
-	s.h = 8;
-	d.w = 8;
-	d.h = 8;
-	while (*text) {
-		c = *text & 255;
-		px = (c % 16) * 8;
-		py = (c / 16) * 8;
-		s.x = px;
-		s.y = py;
-		d.x = x;
-		d.y = y;
-		SDL_BlitSurface(charset, &s, screen, &d);
-		x += 8;
-		text++;
-	};
+struct SDLSet {
+	SDL_Event event;
+	SDL_Texture* scrtex;
+	SDL_Window* window;
+	SDL_Renderer* renderer;
+	SDL_Surface* screen,
+		* charset = SDL_LoadBMP("./cs8x8.bmp"),
+		* click_to_play = SDL_LoadBMP("./click_to_play.bmp"),
+		* tlo_tecza = SDL_LoadBMP("./tlo_tecza.bmp"),
+		* map = SDL_LoadBMP("maps/map21.bmp"),
+		* ikonka_zycia = SDL_LoadBMP("./ikonka_zycia.bmp");
+};
+struct positions {
+	SDL_Rect unicorn;
+	SDL_Rect stars;
+	SDL_Rect girls;
+	SDL_Rect holes;
+	SDL_Rect holeend;
+	SDL_Rect stalactites;
+	SDL_Rect platforms;
+	SDL_Rect doplhins;
+};
+struct gameSet {
+	int t1, frames, bonusowe_punkty_gwiazda, bonusowe_punkty_wrozka, mapY, wartosc_kamera, rc, czarny, losowa_odleglosc, max_girl_move, girl_moved;
+	double delta, worldTime, czas_bonusowy_napis;
+	bool begin, quit;
+
+	bool control_with_arrows = true;
+	bool wybuch_gwiazdy = false;
+	bool explosion_animation = false;
+	const int wartosc = 2; // przy kamerce
+
+	char text[128];
+
+	//oprocza czarnego inne kolory mozna usunac
+	int zielony, czerwony, niebieski;
+
 };
 
+void setGameInitialValues(gameSet* game, SDLSet* SDL) {
+	game->frames = 0;
+	game->t1 = SDL_GetTicks();
+	game->begin = false;
+	game->quit = false;
+	game->delta = 0;
+	game->worldTime = 0;
+	game->czas_bonusowy_napis = 0;
+	game->bonusowe_punkty_gwiazda = 0;
+	game->bonusowe_punkty_wrozka = 0;
+	game->mapY = SURFACE_HEIGHT + GRUBOSC_PODLOZA / 2;
+	game->wartosc_kamera = 0;
 
-// narysowanie na ekranie screen powierzchni sprite w punkcie (x, y)
-// (x, y) to punkt œrodka obrazka sprite na ekranie
-// draw a surface sprite on a surface screen in point (x, y)
-// (x, y) is the center of sprite on screen
-void DrawSurface(SDL_Surface* screen, SDL_Surface* sprite, int x, int y) {
-	SDL_Rect dest;
-	dest.x = x - sprite->w / 2;
-	dest.y = y - sprite->h / 2;
-	dest.w = sprite->w;
-	dest.h = sprite->h;
-	SDL_BlitSurface(sprite, NULL, screen, &dest);
+	srand((unsigned)time(0));
+	game->losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
+
+	game->max_girl_move = 0;
+	game->girl_moved = 0;
+
+
+
+	game->czarny = SDL_MapRGB(SDL->screen->format, 0x00, 0x00, 0x00);
+	game->zielony = SDL_MapRGB(SDL->screen->format, 0x00, 0xFF, 0x00);
+	game->czerwony = SDL_MapRGB(SDL->screen->format, 0xFF, 0x00, 0x00);
+	game->niebieski = SDL_MapRGB(SDL->screen->format, 0x11, 0x11, 0xCC);
+
+
+}
+
+void setGameValuesForQuikcerPace(gameSet* game) {
+	game->frames = 0;
+	srand((unsigned)time(0));
+	game->losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
+}
+struct unicornSet {
+	int lives = 3;
+	int mnoznik_przyspieszenia, isJumping, isFalling, jump, zryw, dlugosc_klatek_zrywu, ilosc_dodawanych_klatek_w_zrywie, spadl_na_dodatkowe_podloze, punkty;
+	
+	int przeszkoda_zotała_rozbita[ILOSC_PRZESZKOD + 1] = { 0 }; //numerowane od 1
+	int kolejna_gwiazda_rozbita;
+
+	int wrozka_zostala_zebrana[ILOSC_WROZEK + 1] = { 0 }; //numerowane od 1
+	int kolejna_wrozka_zebrana;
+
+	bool show_game_over = false;
 };
 
+void setUnicornInitialValues(unicornSet* UnicornVar) {
+	UnicornVar->mnoznik_przyspieszenia = 1;
+	UnicornVar->jump = 0;
+	UnicornVar->isJumping = 0;
+	UnicornVar->isFalling = 0;
+	UnicornVar->zryw = 5;
+	UnicornVar->dlugosc_klatek_zrywu = 0;
+	UnicornVar->ilosc_dodawanych_klatek_w_zrywie = 1;
+	UnicornVar->zryw = 5;
 
-// rysowanie pojedynczego pixela
-void DrawPixel(SDL_Surface* surface, int x, int y, Uint32 color) {
-	int bpp = surface->format->BytesPerPixel;
-	Uint8* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
-	*(Uint32*)p = color;
-};
+	UnicornVar->show_game_over = false;
+	UnicornVar->spadl_na_dodatkowe_podloze = 0;
+
+	UnicornVar->punkty = 0;
+	UnicornVar->kolejna_gwiazda_rozbita = 0;
+	UnicornVar->kolejna_wrozka_zebrana = 0;
+}
+
+void setUnicornValuesForQuikcerPace(unicornSet* UnicornVar) {
+
+	for (int k = 1; k <= ILOSC_PRZESZKOD; k++)
+		UnicornVar->przeszkoda_zotała_rozbita[k] = 0;
+
+	for (int k = 1; k <= ILOSC_WROZEK; k++)
+		UnicornVar->wrozka_zostala_zebrana[k] = 0;
+
+	UnicornVar->mnoznik_przyspieszenia++;
+	UnicornVar->ilosc_dodawanych_klatek_w_zrywie += UnicornVar->mnoznik_przyspieszenia;
+
+}
 
 
-// rysowanie linii o d³ugoœci l w pionie (gdy dx = 0, dy = 1) 
-// b¹dŸ poziomie (gdy dx = 1, dy = 0)
-// draw a vertical (when dx = 0, dy = 1) or horizontal (when dx = 1, dy = 0) line
-void DrawLine(SDL_Surface* screen, int x, int y, int l, int dx, int dy, Uint32 color) {
-	for (int i = 0; i < l; i++) {
-		DrawPixel(screen, x, y, color);
-		x += dx;
-		y += dy;
-	};
-};
-
-
-// rysowanie prostok¹ta o d³ugoœci boków l i k
-// draw a rectangle of size l by k
-void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k, Uint32 outlineColor, Uint32 fillColor) {
-	DrawLine(screen, x, y, k, 0, 1, outlineColor);
-	DrawLine(screen, x + l - 1, y, k, 0, 1, outlineColor);
-	DrawLine(screen, x, y, l, 1, 0, outlineColor);
-	DrawLine(screen, x, y + k - 1, l, 1, 0, outlineColor);
-	for (int i = y + 1; i < y + k - 1; i++)
-		DrawLine(screen, x + 1, i, l - 2, 1, 0, fillColor);
-};
-
-
-void zwolnienie_powierzchni(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer){
-	SDL_FreeSurface(screen);
-	SDL_DestroyTexture(scrtex);
-	SDL_DestroyWindow(window);
-	SDL_DestroyRenderer(renderer);
+void zwolnienie_powierzchni(SDLSet* SDL) {
+	SDL_FreeSurface(SDL->screen);
+	SDL_DestroyTexture(SDL->scrtex);
+	SDL_DestroyWindow(SDL->window);
+	SDL_DestroyRenderer(SDL->renderer);
 	SDL_Quit();
 }
-
-void update_the_screen(SDL_Surface* screen, SDL_Texture* scrtex, SDL_Renderer* renderer){
-	SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
+void update_the_screen(SDLSet* SDL) {
+	SDL_UpdateTexture(SDL->scrtex, NULL, SDL->screen->pixels, SDL->screen->pitch);
 	//		SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, scrtex, NULL, NULL);
-	SDL_RenderPresent(renderer);
+	SDL_RenderCopy(SDL->renderer, SDL->scrtex, NULL, NULL);
+	SDL_RenderPresent(SDL->renderer);
 }
 
-void zmierz_czas(int *t1,  double *delta, double *worldTime ){
-	int t2 = SDL_GetTicks();
-	*delta = (t2 - *t1) * 0.001;
-	*t1 = t2;
-	*worldTime += *delta;
-}
-
-void DrawHorse(SDL_Surface* screen, SDL_Surface* sprite, int x, int y) {
-	SDL_Rect dest;
-	dest.x = x - sprite->w / 2;
-	dest.y = y - sprite->h / 2;
-	dest.w = sprite->w;
-	dest.h = sprite->h;
-	SDL_BlitSurface(sprite, NULL, screen, &dest);
-};
-
-#endif 
-void setrects(SDL_Rect* clip, int ilosc_klatek){
+void setrects(SDL_Rect* clip, int ilosc_klatek) {
 	for (int i = 0; i < ilosc_klatek; i++) {
 		clip[i].x = 0 + i * SZEROKOSC_KONIA;
 		clip[i].y = 0;
@@ -170,14 +197,10 @@ void setrects(SDL_Rect* clip, int ilosc_klatek){
 	}
 }
 
-
-
-
-
 class singleSprite {
 private:
 
-	SDL_Surface* screen;
+	SDL_Surface*screen;
 	SDL_Texture* scrtex;
 	SDL_Window* window;
 	SDL_Renderer* renderer;
@@ -191,35 +214,34 @@ private:
 	double animationTime[MAX_NUMBER_OF_IMAGES] = { 0 };
 
 public:
-	singleSprite(	SDL_Surface* surface1,		  int numberOfFrames1 = 0,
-					SDL_Surface* surface2 = NULL, int numberOfFrames2 = 0,
-					SDL_Surface* surface3 = NULL, int numberOfFrames3 = 0, 
-					SDL_Surface* surface4 = NULL, int numberOfFrames4 = 0, 
-					SDL_Surface* surface5 = NULL, int numberOfFrames5 = 0, 
-					SDL_Surface* surface6 = NULL, int numberOfFrames6 = 0, 
-					int numberOfImages = 1) {
+	singleSprite(SDL_Surface* surface1, int numberOfFrames1 = 0,
+		SDL_Surface* surface2 = NULL, int numberOfFrames2 = 0,
+		SDL_Surface* surface3 = NULL, int numberOfFrames3 = 0,
+		SDL_Surface* surface4 = NULL, int numberOfFrames4 = 0,
+		SDL_Surface* surface5 = NULL, int numberOfFrames5 = 0,
+		SDL_Surface* surface6 = NULL, int numberOfFrames6 = 0,
+		int numberOfImages = 1) {
 
 
-					image[1] = surface1; // running
-					numberOfFrames[1] = numberOfFrames1;
-					image[2] = surface2; //jump up
-					numberOfFrames[2] = numberOfFrames2;
-					image[3] = surface3; //jump down
-					numberOfFrames[3] = numberOfFrames3;
-					image[4] = surface4; //dash
-					numberOfFrames[4] = numberOfFrames4;
-					image[5] = surface5; //star
-					numberOfFrames[5] = numberOfFrames5;
-					image[6] = surface6; //explosion
-					numberOfFrames[6] = numberOfFrames6;
+		image[1] = surface1; // running
+		numberOfFrames[1] = numberOfFrames1;
+		image[2] = surface2; //jump up
+		numberOfFrames[2] = numberOfFrames2;
+		image[3] = surface3; //jump down
+		numberOfFrames[3] = numberOfFrames3;
+		image[4] = surface4; //dash
+		numberOfFrames[4] = numberOfFrames4;
+		image[5] = surface5; //star
+		numberOfFrames[5] = numberOfFrames5;
+		image[6] = surface6; //explosion
+		numberOfFrames[6] = numberOfFrames6;
 
-					for (int i = 1; i <= numberOfImages; i++) {
-						if (image[i] == NULL) {
-							printf("Loading image error: %s\n", SDL_GetError());
-							zwolnienie_powierzchni(screen, scrtex, window, renderer);
-							exit;
-						}
-					}
+		for (int i = 1; i <= numberOfImages; i++) {
+			if (image[i] == NULL) {
+				printf("Loading image error: %s\n", SDL_GetError());
+				exit;
+			}
+		}
 	}
 
 	SDL_Rect obszar = rect;
@@ -239,7 +261,7 @@ public:
 			setrects(animation[i], numberOfFrames[i]);
 		}
 	}
-	void animate(double changeFrameTime, double addedTime, SDL_Surface* destination, int imageN = 1, bool *boolVariable = false, int *bonus=0) {
+	void animate(double changeFrameTime, double addedTime, SDL_Surface* destination, int imageN = 1, bool* boolVariable = false, int* bonus = 0) {
 
 		animationTime[imageN] += addedTime;
 		if (animationTime[imageN] >= changeFrameTime) {
@@ -266,11 +288,10 @@ public:
 	}
 
 };
-
 class multipleSprite {
 private:
 
-	SDL_Surface* screen;
+	SDL_Surface*screen;
 	SDL_Texture* scrtex;
 	SDL_Window* window;
 	SDL_Renderer* renderer;
@@ -283,21 +304,20 @@ private:
 	int animationFrame = 0;
 	double animationTime = 0;
 
-	
+
 public:
 	SDL_Surface* obraz;
 	SDL_Rect obszar[MAX_NUMBER_OF_RECTS];
 
-	multipleSprite( SDL_Surface* surface, int amountOfFrames = 0) {
+	multipleSprite(SDL_Surface* surface, int amountOfFrames = 0) {
 
 
-		image = surface; 
+		image = surface;
 		obraz = image;
 		numberOfFrames = amountOfFrames;
-	
+
 		if (image == NULL) {
 			printf("Loading image error: %s\n", SDL_GetError());
-			zwolnienie_powierzchni(screen, scrtex, window, renderer);
 			exit;
 		}
 	}
@@ -307,7 +327,7 @@ public:
 			multipleRect[i] = sourceRect;
 			obszar[i] = multipleRect[i];
 		}
-		
+
 	}
 	void updateMultipleRects(int numberOfRects) {
 		for (int i = 1; i <= numberOfRects; i++)
@@ -355,7 +375,6 @@ public:
 	}
 
 };
-
 struct SpriteSet {
 	singleSprite unicorn = singleSprite(SDL_LoadBMP("./bieg1.bmp"), 9, SDL_LoadBMP("./skok_gora2.bmp"), 10, SDL_LoadBMP("./skok_dol1.bmp"), 10, SDL_LoadBMP("./zryw1.bmp"), 4, SDL_LoadBMP("./gwiazdeczka1.bmp"), 5, SDL_LoadBMP("./eksplozja1.bmp"), 5, 6);
 	multipleSprite stars = multipleSprite(SDL_LoadBMP("./star1.bmp"));
@@ -367,432 +386,251 @@ struct SpriteSet {
 	multipleSprite doplhins = multipleSprite(SDL_LoadBMP("./animacjadelfin1.bmp"), 5);
 };
 
-struct positions {
-	SDL_Rect unicorn;
-	SDL_Rect stars;
-	SDL_Rect girls;
-	SDL_Rect holes;
-	SDL_Rect holeend;
-	SDL_Rect stalactites;
-	SDL_Rect platforms;
-	SDL_Rect doplhins;
+void DrawString(SDL_Surface*screen, int x, int y, const char* text, SDL_Surface* charset) {
+	int px, py, c;
+	SDL_Rect s, d;
+	s.w = 8;
+	s.h = 8;
+	d.w = 8;
+	d.h = 8;
+	while (*text) {
+		c = *text & 255;
+		px = (c % 16) * 8;
+		py = (c / 16) * 8;
+		s.x = px;
+		s.y = py;
+		d.x = x;
+		d.y = y;
+		SDL_BlitSurface(charset, &s,screen, &d);
+		x += 8;
+		text++;
+	};
 };
 
-int initializeSDL();
+void DrawSurface(SDL_Surface*screen, SDL_Surface* sprite, int x, int y) {
+	SDL_Rect dest;
+	dest.x = x - sprite->w / 2;
+	dest.y = y - sprite->h / 2;
+	dest.w = sprite->w;
+	dest.h = sprite->h;
+	SDL_BlitSurface(sprite, NULL,screen, &dest);
+};
+void DrawPixel(SDL_Surface* surface, int x, int y, Uint32 color) {
+	int bpp = surface->format->BytesPerPixel;
+	Uint8* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
+	*(Uint32*)p = color;
+};
+void DrawLine(SDL_Surface*screen, int x, int y, int l, int dx, int dy, Uint32 color) {
+	for (int i = 0; i < l; i++) {
+		DrawPixel(screen, x, y, color);
+		x += dx;
+		y += dy;
+	};
+};
+
+void DrawRectangle(SDL_Surface*screen, int x, int y, int l, int k, Uint32 outlineColor, Uint32 fillColor) {
+	DrawLine(screen, x, y, k, 0, 1, outlineColor);
+	DrawLine(screen, x + l - 1, y, k, 0, 1, outlineColor);
+	DrawLine(screen, x, y, l, 1, 0, outlineColor);
+	DrawLine(screen, x, y + k - 1, l, 1, 0, outlineColor);
+	for (int i = y + 1; i < y + k - 1; i++)
+		DrawLine(screen, x + 1, i, l - 2, 1, 0, fillColor);
+};
+
+int initializeSDL(gameSet* game, SDLSet* SDL);
 int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int* rc);
-int checkSurface(SDL_Surface* surface, SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer);
 
 void setInitialPositions(positions* Init);
 void createSprites(positions* Init, SpriteSet* sprite, int backgroundColor);
 
+void MenuControlling(gameSet *game, SDLSet* SDL);
+void calculateTime(gameSet* game);
+int checkSurface(SDL_Surface* surface, SDLSet* SDL);
+void loadBackgroundSurfaces(gameSet* game, SDLSet* SDL);
 
-void SDL_EventBegin(SDL_Event event, bool *begin, bool *quit ) {
+void MenuDisplay(gameSet* game, SDLSet* SDL);
 
-	
-		switch (event.type) {
-		case SDL_KEYDOWN:
-			if (event.key.keysym.sym == SDLK_ESCAPE) {
-				*quit = true;
-				*begin = true;
-			}
-			else if (event.key.keysym.sym == SDLK_n) *begin = true;
-			break;
+void setControlKeys(gameSet* game);
+void unicornJumps(unicornSet* UnicornVar, SpriteSet* sprite);
+void unicornDashes(unicornSet* UnicornVar);
+void unicornFallsAfterJump(unicornSet* UnicornVar, SpriteSet* sprite);
+void unicornReturnsAfterDash(unicornSet* UnicornVar);
+void gameControlling(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar, SpriteSet* sprite);
 
-		case SDL_QUIT:
-			*quit = true;
-			*begin = true;
-			break;
+void displayBackgroundSurfaces(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar) {
+	//tlo
+	DrawSurface(SDL->screen, SDL->tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
 
-		};
-	
+	for (int i = 0; i < UnicornVar->lives; i++)
+		DrawSurface(SDL->screen, SDL->ikonka_zycia, i * 60 + 40, SCREEN_HEIGHT - 50);
+
+	float mapX = -game->frames + SZEROKOSC_MAPY_BMP / 2;
+	//mapa i stalaktyty
+	DrawSurface(SDL->screen, SDL->map, mapX, game->mapY);
+
+	//pokazuje kolejna czesc mapy
+	if (mapX <SCREEN_WIDTH - SZEROKOSC_MAPY_BMP / 2 && mapX > -SZEROKOSC_MAPY_BMP / 2) {
+		int diff = SZEROKOSC_MAPY_BMP + mapX;
+		DrawSurface(SDL->screen, SDL->map, diff, game->mapY);
+	}
 }
+
+void unicornRunsAnimation(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar, SpriteSet* sprite) {
+	if ((UnicornVar->isJumping == 0 && UnicornVar->zryw != 2) || (UnicornVar->isJumping != 0 && UnicornVar->zryw == 3)) {
+		sprite->unicorn.animate(0.15, game->delta, SDL->screen, 1);
+	}
+}
+
+void unicornDashActive(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar, SpriteSet* sprite) {
+	if (UnicornVar->dlugosc_klatek_zrywu < 100) {
+		sprite->unicorn.animate(0.1, game->delta, SDL->screen, 4);
+
+		UnicornVar->dlugosc_klatek_zrywu += UnicornVar->ilosc_dodawanych_klatek_w_zrywie;
+		sprite->unicorn.changeRectPosition(UnicornVar->ilosc_dodawanych_klatek_w_zrywie, 0);
+
+	}
+	else UnicornVar->zryw = 3;
+}
+
+void unicornDashReturn(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar, SpriteSet* sprite) {
+	if (UnicornVar->dlugosc_klatek_zrywu > 0) {
+		UnicornVar->dlugosc_klatek_zrywu -= UnicornVar->ilosc_dodawanych_klatek_w_zrywie;
+		sprite->unicorn.changeRectPosition(-UnicornVar->ilosc_dodawanych_klatek_w_zrywie, 0);
+	}
+	else {
+		UnicornVar->zryw = 4;
+		sprite->unicorn.zeroAnimationFrame(4);
+	}
+}
+
 
 #ifdef __cplusplus
 extern "C"
 #endif
 int main(int argc, char** argv) {
-	int t1, t2, frames, rc;
-	double delta, worldTime, fpsTimer, fps, distance, etiSpeed;
-	SDL_Event event;
-	SDL_Surface* screen, * charset, * click_to_play,  * tlo_tecza, * map, * ikonka_zycia, * wrozki, * znaczek_eti, * star, * stalaktyt, * dziuraa, * grass, * ziemniaki, *niebo;
-	SDL_Texture* scrtex;
-	SDL_Window* window;
-	SDL_Renderer* renderer;
-
-	initializeSDL();
-//	rc = SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &renderer);
-	rc = SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &window, &renderer);
-	SetUpWindow(window,renderer,&rc);
-	screen = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-	scrtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-
-#ifndef Ładowanie_obrazkow
-
-	char text[128];
-	int czarny = SDL_MapRGB(screen->format, 0x00, 0x00, 0x00);
-	int zielony = SDL_MapRGB(screen->format, 0x00, 0xFF, 0x00);
-	int czerwony = SDL_MapRGB(screen->format, 0xFF, 0x00, 0x00);
-	int niebieski = SDL_MapRGB(screen->format, 0x11, 0x11, 0xCC);
-
-	charset = SDL_LoadBMP("./cs8x8.bmp");
-	checkSurface(charset, screen, scrtex, window, renderer);
-	SDL_SetColorKey(charset, true, 0x000000);
-
-	click_to_play = SDL_LoadBMP("./click_to_play.bmp");
-	checkSurface(click_to_play, screen, scrtex, window, renderer);
-
-	tlo_tecza = SDL_LoadBMP("./tlo_tecza.bmp");
-	checkSurface(tlo_tecza, screen, scrtex, window, renderer);
-
-	map = SDL_LoadBMP("maps/map21.bmp");
-	checkSurface(map, screen, scrtex, window, renderer);
+	gameSet game;
+	SDLSet SDL;
 	
-	ikonka_zycia = SDL_LoadBMP("./ikonka_zycia.bmp");
-	checkSurface(ikonka_zycia, screen, scrtex, window, renderer);
-	SDL_SetColorKey(ikonka_zycia, true, czarny);
-
-
-#endif
-
-
-#ifndef zmienne animacje
-
-	bool begin = false;
-	bool quit = false;
-	bool control_with_arrows = true;
-
-	int dlugosc_animacji_rozbijania = 0;
-	bool wybuch_gwiazdy = false;
-	bool explosion_animation = false;
-
-	double czas_bonusowy_napis = 0;
-	int bonusowe_punkty_gwiazda = 0;
-	int bonusowe_punkty_wrozka = 0;
-
-	double czas_blysk_gwiazdy = 0;
-	double czas_skok = 0;
-	double czas_delfin = 0;
-
-	int mapY = SURFACE_HEIGHT + GRUBOSC_PODLOZA / 2;
-	int wartosc = 2;
-	int wartosc_kamera = 0;
-
-	t1 = SDL_GetTicks();
-	frames = 0;
-	fpsTimer = 0;
-	fps = 0;
-	worldTime = 0;
-	distance = 0;
-	etiSpeed = 1;
-#endif
+	initializeSDL(&game, &SDL);
+	setGameInitialValues(&game, &SDL);
+	loadBackgroundSurfaces(&game, &SDL);
 
 	positions Init;
 	setInitialPositions(&Init);
 
 	SpriteSet sprite;
-	createSprites(&Init, &sprite, czarny);
+	createSprites(&Init, &sprite, game.czarny);
 	
-	while (!quit) {
+	while (!game.quit) {
 
-		while (!begin) {
-			while (SDL_PollEvent(&event)) 
-			SDL_EventBegin(event, &begin, &quit);
-
-			DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-			DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-
-			sprintf(text, "Witamy w grze Robot Unicorn Attack!");
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-			sprintf(text, "Wcisnij n zeby spelnić swoje marzenia!");
-			DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
-
-			update_the_screen(screen, scrtex, renderer);
+		while (!game.begin) {
+			MenuControlling(&game, &SDL);
+			MenuDisplay(&game, &SDL);
 		}
 		
-		//tworzenie nowej gry - inicjalizacja zmiennych
-#ifndef zmienne
-		
-		frames = 0;
-		fpsTimer = 0;
-		fps = 0;
-		worldTime = 0;
-		distance = 0;
-		etiSpeed = 1;
+		unicornSet UnicornVar;
+		setUnicornInitialValues(&UnicornVar);
 
-		int mnoznik_przyspieszenia = 1;
-		int isJumping = 0, isFalling = 0;
-		unsigned int jump = 0;
-	
-
-		int zryw = 5;
-		int dlugosc_klatek_zrywu = 0;
-		int ilosc_dodawanych_klatek_w_zrywie = 1;
-
-		int lives = 3;
-		bool sprite_over = false;
-
-		int spadl_na_dodatkowe_podloze = 0;
-
-		int max_girl_move= 0;
-		int girl_moved = 0;
-		
-		int punkty = 0;
-		int przeszkoda_zotała_rozbita[ILOSC_PRZESZKOD + 1] = { 0 }; //numerowane od 1
-		int kolejna_gwiazda_rozbita = 0;
-
-		int wrozka_zostala_zebrana[ILOSC_WROZEK + 1] = { 0 }; //numerowane od 1
-		int kolejna_wrozka_zebrana = 0;
-
-		int losowa_odleglosc = 0;
-		srand((unsigned)time(0));
-		losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
-
-#endif
-		while (lives > 0) {
-			if (!sprite_over) {
-				if (!explosion_animation) {
+		while (UnicornVar.lives > 0) {
+			if (!UnicornVar.show_game_over) {
+				if (!game.explosion_animation) {
 					
-					while (SDL_PollEvent(&event)) {
-						switch (event.type) {
-						case SDL_KEYDOWN:
-							if (event.key.keysym.sym == SDLK_ESCAPE) quit = true; //wyjscie z programu
+					gameControlling(&game, &SDL, &UnicornVar, &sprite);
 
-							else if (event.key.keysym.sym == SDLK_d) { // zmiana ustawien sterowania
-								if (control_with_arrows) control_with_arrows = false;
-								else control_with_arrows = true;
+					calculateTime(&game);
 
-							}
+					displayBackgroundSurfaces(&game, &SDL, &UnicornVar);
 
-							else if (control_with_arrows) {
-								if (event.key.keysym.sym == SDLK_UP) {//skok
-									if (isJumping == 0) {
-										isJumping = 1;
-										
-									}
-									else if (isJumping == 1 && isFalling == 1) {
-										isJumping = 2;
-									}
-									
-									sprite.unicorn.zeroAnimationFrame(2, 3);
-								}
-								else if (event.key.keysym.sym == SDLK_RIGHT) //zryw
-								{
-									if (zryw == 5) {
-										zryw = 2;
-
-										if (jump > 0) {
-											isJumping = 1;
-											isFalling = 1;
-										}
-										if (jump == 0) {
-											isJumping = 0;
-											isFalling = 0;
-										}
-
-									}
-								}
-							}
-
-							else if (!control_with_arrows) {
-								if (event.key.keysym.sym == SDLK_z) { //skok
-									if (isJumping == 0) isJumping = 1;
-									else if (isJumping == 1 && isFalling == 1) isJumping = 2;
-								}
-
-								else if (event.key.keysym.sym == SDLK_x) //zryw
-								{
-									if (zryw == 5) {
-										zryw = 2;
-
-										if (jump > 0) {
-											isJumping = 1;
-											isFalling = 1;
-										}
-										if (jump == 0) {
-											isJumping = 0;
-											isFalling = 0;
-										}
-
-									}
-								}
-							}
-							break;
-
-						case SDL_KEYUP:
-							if (control_with_arrows) {
-								if (event.key.keysym.sym == SDLK_UP) { //spadanie po skoku
-									isFalling++;
-									if (isFalling == 3)
-										isFalling = 2;
-									if (isFalling == 1 && jump == 0)
-										isFalling = 0;
-									sprite.unicorn.setJumpAnimationFrame();
-								}
-								else if (event.key.keysym.sym == SDLK_RIGHT) {
-									zryw = 3; //zryw
-
-								}
-							}
-
-							if (!control_with_arrows) {
-								if (event.key.keysym.sym == SDLK_z) { //spadanie po skoku
-									isFalling++;
-									if (isFalling == 3)
-										isFalling = 2;
-									if (isFalling == 1 && jump == 0)
-										isFalling = 0;
-								}
-								else if (event.key.keysym.sym == SDLK_x) {
-									zryw = 3; //zryw
-								}
-							}
-							break;
-						case SDL_QUIT:
-							quit = true;
-							break;
-						};
-					};
-
-					zmierz_czas(&t1, &delta, &worldTime);
+					unicornRunsAnimation(&game, &SDL, &UnicornVar, &sprite);
 
 
-#ifndef tła
-
-					//tlo
-					DrawSurface(screen, tlo_tecza, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-
-					for (int i = 0; i < lives; i++)
-					DrawSurface(screen, ikonka_zycia, i*60 + 40, SCREEN_HEIGHT - 50);
-
-
-					//zmien sposob prezentacji mapy - malo jasny
-					float mapX = -frames + SZEROKOSC_MAPY_BMP / 2;
-					//mapa i stalaktyty
-					DrawSurface(screen, map, mapX, mapY);
-
-
-					//pokazuje kolejna czesc mapy
-					if (mapX < SCREEN_WIDTH - SZEROKOSC_MAPY_BMP / 2 && mapX > -SZEROKOSC_MAPY_BMP / 2) {
-						int diff = SZEROKOSC_MAPY_BMP + mapX;
-						DrawSurface(screen, map, diff, mapY);
-					}
-#endif
-					
-					//animacja biegu
-					if ((isJumping == 0 && zryw != 2) || (isJumping!= 0 && zryw ==3)) {
-						sprite.unicorn.animate(0.15, delta, screen, 1);}
 					//zryw i skok
-#ifndef zryw i skok
-					if (zryw != 0) {
-						//zryw = 2 kon jest podczas zrywu --> zryw aktywny
+#ifndef UnicornVar.zryw i skok
+					if (UnicornVar.zryw != 0) {
+						//zryw = 2 kon jest podczas UnicornVar.zrywu --> UnicornVar.zryw aktywny
 						//zryw = 3 powracanie na pozycje
-						//zryw = 4 zryw sie skonczyl - mozliwy dodatkowy skok
-						//zryw = 5 kon upadl na ziemie po zakonczeniu zrywu lub dodtakowego skoku, pelna gotowosc do kolejnego zrywu
+						//zryw = 4 UnicornVar.zryw sie skonczyl - mozliwy dodatkowy skok
+						//zryw = 5 kon upadl na ziemie po zakonczeniu UnicornVar.zrywu lub dodtakowego skoku, pelna gotowosc do kolejnego UnicornVar.zrywu
 
-						if (zryw == 2){
-							if (dlugosc_klatek_zrywu < 100){	
-								sprite.unicorn.animate(0.1, delta, screen, 4);
-
-								dlugosc_klatek_zrywu += ilosc_dodawanych_klatek_w_zrywie;
-								sprite.unicorn.changeRectPosition(ilosc_dodawanych_klatek_w_zrywie, 0);
-								
-							}
-							else {
-								zryw = 3;
-							}
-						}
-						if (zryw == 3) {
-							if (dlugosc_klatek_zrywu > 0) {
+						if (UnicornVar.zryw == 2) unicornDashActive(&game, &SDL, &UnicornVar, &sprite);
+						if (UnicornVar.zryw == 3) unicornDashReturn(&game, &SDL, &UnicornVar, &sprite);
+						if (UnicornVar.zryw == 4 || UnicornVar.zryw == 5) {
 
 
-								dlugosc_klatek_zrywu -= ilosc_dodawanych_klatek_w_zrywie;
-								sprite.unicorn.changeRectPosition(-ilosc_dodawanych_klatek_w_zrywie, 0);
+							if (UnicornVar.isJumping != 0) {
+								if (UnicornVar.isJumping == 1) {
+									if (UnicornVar.isFalling == 1 && UnicornVar.jump > 0) { //spadek
 
 
-							}
-							else {
-								zryw = 4;
-								sprite.unicorn.zeroAnimationFrame(4);
-							}
-						}
-						if (zryw == 4 || zryw == 5) {
-
-
-							if (isJumping != 0) {
-								if (isJumping == 1) {
-									if (isFalling == 1 && jump > 0) { //spadek
-
-
-										(jump)--;
+										(UnicornVar.jump)--;
 										sprite.unicorn.changeRectPosition(0, 1);
 
-										sprite.unicorn.animate(0.05, delta, screen, 3);
+										sprite.unicorn.animate(0.05, game.delta, SDL.screen, 3);
 
-										if (jump == 0) { //koniec skoku
-											isJumping = 0;
-											isFalling = 0;
-											zryw = 5;
-											spadl_na_dodatkowe_podloze = 0;
-											czas_skok = 0;
+										if (UnicornVar.jump == 0) { //koniec skoku
+											UnicornVar.isJumping = 0;
+											UnicornVar.isFalling = 0;
+											UnicornVar.zryw = 5;
+											UnicornVar.spadl_na_dodatkowe_podloze = 0;
+											
 											//wartosc_kamera = 0;
 										}
 									}
 
 									else { //wznoszenie sie
-										jump++;
+										UnicornVar.jump++;
 										sprite.unicorn.changeRectPosition(0, -1);
 
-										if (jump == MAX_JUMP_HEIGHT / 2) {
-											isFalling = 1;
-											czas_skok = 0;
+										if (UnicornVar.jump == MAX_JUMP_HEIGHT / 2) {
+											UnicornVar.isFalling = 1;
+											
 										}
 
-										sprite.unicorn.animate(0.05, delta, screen, 2);
+										sprite.unicorn.animate(0.05, game.delta, SDL.screen, 2);
 
 
 									}
 
 								}
 
-								if (isJumping == 2) {
+								if (UnicornVar.isJumping == 2) {
 
-									if (isFalling == 2 && jump > 0) { //spadek
+									if (UnicornVar.isFalling == 2 && UnicornVar.jump > 0) { //spadek
 
 
 
-										(jump)--;
+										(UnicornVar.jump)--;
 										sprite.unicorn.changeRectPosition(0, 1);
-										sprite.unicorn.animate(0.05, delta, screen, 3);
+										sprite.unicorn.animate(0.05, game.delta, SDL.screen, 3);
 
-										if (jump == 0) { //koniec skoku
-											isJumping = 0;
-											isFalling = 0;
-											zryw = 5;
-											spadl_na_dodatkowe_podloze = 0;
-											czas_skok = 0;
+										if (UnicornVar.jump == 0) { //koniec skoku
+											UnicornVar.isJumping = 0;
+											UnicornVar.isFalling = 0;
+											UnicornVar.zryw = 5;
+											UnicornVar.spadl_na_dodatkowe_podloze = 0;
+											
 											//wartosc_kamera = 0;
 										}
 									}
 
 									else { //wznoszenie sie
-										(jump)++;
+										(UnicornVar.jump)++;
 										
-										if (jump == MAX_JUMP_HEIGHT) isFalling = 2;
+										if (UnicornVar.jump == MAX_JUMP_HEIGHT) UnicornVar.isFalling = 2;
 
 										sprite.unicorn.changeRectPosition(0, -1);
-										sprite.unicorn.animate(0.05, delta, screen, 2);
+										sprite.unicorn.animate(0.05, game.delta,SDL.screen, 2);
 
 										
 									}
 								}
 							}
-							else zryw = 5;
+							else UnicornVar.zryw = 5;
 						}
 						//zablokowanie skoku wychodzacego po za gre
 						if (sprite.unicorn.obszar.y == 10) {
-							isJumping = 2;
-							isFalling = 2;
+							UnicornVar.isJumping = 2;
+							UnicornVar.isFalling = 2;
 						}
 					}
 #endif
@@ -802,27 +640,27 @@ int main(int argc, char** argv) {
 					//przeszkody
 					for (int k = 1; k <= ILOSC_PRZESZKOD; k++) {
 						int start_showing = k * ODL_POM_PRZESZKODAMI;
-						int end_showing = k * ODL_POM_PRZESZKODAMI + SCREEN_WIDTH + 2 * sprite.stars.obszar[k].w + losowa_odleglosc;
+						int end_showing = k * ODL_POM_PRZESZKODAMI +SCREEN_WIDTH + 2 * sprite.stars.obszar[k].w + game.losowa_odleglosc;
 
 
-						if (start_showing < frames && frames < end_showing) {
+						if (start_showing < game.frames && game.frames < end_showing) {
 
 							if (przeszkoda_zotała_rozbita[k] == 0) {
-								sprite.stars.obszar[k].x = start_showing + SCREEN_WIDTH - frames + losowa_odleglosc;
+								sprite.stars.obszar[k].x = start_showing +SCREEN_WIDTH - frames + game.losowa_odleglosc;
 
 								if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.stars.obszar[k])) {
-									if (zryw == 2) {
+									if (UnicornVar.zryw == 2) {
 										przeszkoda_zotała_rozbita[k] = 1;
 										kolejna_gwiazda_rozbita++;
-										bonusowe_punkty_gwiazda = 100 * kolejna_gwiazda_rozbita;
-										punkty += bonusowe_punkty_gwiazda;
+										game.bonusowe_punkty_gwiazda = 100 * kolejna_gwiazda_rozbita;
+										punkty += game.bonusowe_punkty_gwiazda;
 										printf("gwiazda rozbita \n");
-										sprite.stars.obszar[k].x = SCREEN_WIDTH;
-										czas_bonusowy_napis = 0;
+										sprite.stars.obszar[k].x =SCREEN_WIDTH;
+										game.czas_bonusowy_napis = 0;
 									}
 									else {
 										printf("zderzenie z gwiazda \n");
-										explosion_animation = true;
+										game.explosion_animation = true;
 										 
 									}
 								}
@@ -832,7 +670,7 @@ int main(int argc, char** argv) {
 									printf("ominieta gwiazda\n");
 								}
 
-								SDL_BlitSurface(sprite.stars.obraz, NULL, screen, &sprite.stars.obszar[k]);
+								SDL_BlitSurface(sprite.stars.obraz, NULL,SDL.screen, &sprite.stars.obszar[k]);
 							}
 						}
 
@@ -840,9 +678,9 @@ int main(int argc, char** argv) {
 
 #endif
 					//animacja wybuchu gwiazdy
-					if (bonusowe_punkty_gwiazda != 0 || wybuch_gwiazdy == true) {
-						wybuch_gwiazdy = true;
-						sprite.unicorn.animate(0.1, delta, screen, 5, &wybuch_gwiazdy, &bonusowe_punkty_gwiazda);
+					if (game.bonusowe_punkty_gwiazda != 0 || game.wybuch_gwiazdy == true) {
+						game.wybuch_gwiazdy = true;
+						sprite.unicorn.animate(0.1, game.delta,SDL.screen, 5, &game.wybuch_gwiazdy, &game.bonusowe_punkty_gwiazda);
 					}
 
 
@@ -850,19 +688,19 @@ int main(int argc, char** argv) {
 					//stalaktyty
 					for (int k = 1; k <= ILOSC_STALAKTYTOW; k++) {
 						int start_showing = k * ODL_POM_STALAKTYTAMI;
-						int end_showing = k * ODL_POM_STALAKTYTAMI + SCREEN_WIDTH + 2 * sprite.stalactites.obszar[k].w;
+						int end_showing = k * ODL_POM_STALAKTYTAMI +SCREEN_WIDTH + 2 * sprite.stalactites.obszar[k].w;
 
 						if (start_showing < frames && frames < end_showing) {
 
-							sprite.stalactites.obszar[k].x = start_showing + SCREEN_WIDTH - frames;
+							sprite.stalactites.obszar[k].x = start_showing +SCREEN_WIDTH - frames;
 
 							if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.stalactites.obszar[k])) {
-								explosion_animation = true;
+								game.explosion_animation = true;
 								 
 								printf("STALAKTYT \n");
 							}
 
-							SDL_BlitSurface(sprite.stalactites.obraz, NULL, screen, &sprite.stalactites.obszar[k]);
+							SDL_BlitSurface(sprite.stalactites.obraz, NULL,SDL.screen, &sprite.stalactites.obszar[k]);
 							//DrawRectangle(screen, stal[k].x, stal[k].y, stal[k].w, stal[k].h, czerwony, niebieski);
 						}
 					}
@@ -877,25 +715,25 @@ int main(int argc, char** argv) {
 						// 2 zaczal spadac z dodatkowego podloza
 
 						int start_showing = k * ODL_POM_DOD_PODLOZAMI;
-						int end_showing = k * ODL_POM_DOD_PODLOZAMI + SCREEN_WIDTH + SZEROKOSC_DOD_PODLOZA;
+						int end_showing = k * ODL_POM_DOD_PODLOZAMI +SCREEN_WIDTH + SZEROKOSC_DOD_PODLOZA;
 
 
 
 						if (start_showing < frames && frames < end_showing) {
-							int X = start_showing + SCREEN_WIDTH - frames;
+							int X = start_showing +SCREEN_WIDTH - frames;
 							int Y = SURFACE_HEIGHT - WYSOKOSC_DODATKOWEGO_PODLOZA - (k - 1) * ROZNICA_POZIOMOW_MIEDZY_DOD_PODLOZAMI;
 							sprite.platforms.setNewRectsPosition(X, Y, k);
 							
-							SDL_BlitSurface(sprite.platforms.obraz, NULL, screen, &sprite.platforms.obszar[k]);
+							SDL_BlitSurface(sprite.platforms.obraz, NULL,SDL.screen, &sprite.platforms.obszar[k]);
 							/*printf("%d %d %d %d\n", sprite.platforms.obszar[k].x, sprite.platforms.obszar[k].y,
 								sprite.platforms.obszar[k].w, sprite.platforms.obszar[k].h);*/
 							//DrawRectangle(screen, sprite.platforms.obszar[k].x, sprite.platforms.obszar[k].y, sprite.platforms.obszar[k].w, sprite.platforms.obszar[k].h, zielony, niebieski);
 							int granica = WYSOKOSC_DODATKOWEGO_PODLOZA - 1 + (k - 1) * ROZNICA_POZIOMOW_MIEDZY_DOD_PODLOZAMI - wartosc_kamera;
 							//printf("%d %d %d \n", k, jump, granica);
 							if (spadl_na_dodatkowe_podloze == 0 && SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.platforms.obszar[k])) {
-								if (jump < granica) {
+								if (UnicornVar.jump < granica) {
 									printf("zderzenie czolowe dodatkowe podloze \n");
-									explosion_animation = true;
+									game.explosion_animation = true;
 									 
 								}
 
@@ -915,11 +753,11 @@ int main(int argc, char** argv) {
 							}
 						}
 					}
-
-					if (spadl_na_dodatkowe_podloze == 2 && jump >= 0 && isJumping == 0) {
-						if (jump == 0) spadl_na_dodatkowe_podloze = 0;
+					
+					if (spadl_na_dodatkowe_podloze == 2 && jump >= 0 &&UnicornVar.isJumping == 0) {
+						if (UnicornVar.jump == 0) spadl_na_dodatkowe_podloze = 0;
 						else {
-							jump--;
+							UnicornVar.jump--;
 							sprite.unicorn.changeRectPosition(0, 1);
 						}
 					}
@@ -930,38 +768,38 @@ int main(int argc, char** argv) {
 
 					for (int k = 1; k <= ILOSC_DZIUR; k++) {
 						int start_showing = k * ODL_POM_DZIURAMI;
-						int end_showing = k * ODL_POM_DZIURAMI + SCREEN_WIDTH + SZEROKOSC_DZIURY;
+						int end_showing = k * ODL_POM_DZIURAMI +SCREEN_WIDTH + SZEROKOSC_DZIURY;
 
 						
 						if (start_showing < frames && frames < end_showing) {
 
-							int X =  start_showing + SCREEN_WIDTH - frames;
+							int X =  start_showing +SCREEN_WIDTH - frames;
 							int Y = SURFACE_HEIGHT - 1;
 							sprite.holes.setNewRectsPosition(X, Y, k);
 
 							if (frames < end_showing) {
 
-								if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holes.obszar[k]) && isJumping == 0) {
+								if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holes.obszar[k]) &&UnicornVar.isJumping == 0) {
 									sprite.unicorn.changeRectPosition(0, 1);
 									jump--;
 								}
 								//DrawRectangle(screen, hole[k].x, hole[k].y, hole[k].w, hole[k].h, niebieski, czerwony);
 							}
 
-							SDL_BlitSurface(sprite.holes.obraz, NULL, screen, &sprite.holes.obszar[k]);
+							SDL_BlitSurface(sprite.holes.obraz, NULL,SDL.screen, &sprite.holes.obszar[k]);
 
 							
 						}
 
 						// zderzenie z poczatkiem terenu za dziura
 						if (end_showing - SZEROKOSC_DZIURY < frames && frames < end_showing + SZEROKOSC_DZIURY) {
-							int X = start_showing + SCREEN_WIDTH - frames + SZEROKOSC_DZIURY + 20;
+							int X = start_showing +SCREEN_WIDTH - frames + SZEROKOSC_DZIURY + 20;
 							int Y = SURFACE_HEIGHT + GRUBOSC_PODLOZA / 2;
 
 							sprite.holeend.setNewRectsPosition(X, Y, k);
 
 							if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.holeend.obszar[k])) {
-								explosion_animation = true;
+								game.explosion_animation = true;
 								 
 								printf("koniec dziury\n");
 							}
@@ -969,8 +807,8 @@ int main(int argc, char** argv) {
 						}
 
 						//spadniecie na dolny koniec ekranu
-						if (jump == -160) {
-							sprite_over = true;
+						if (UnicornVar.jump == -160) {
+							show_game_over = true;
 							lives--;
 							printf("dno \n");
 						}
@@ -981,13 +819,13 @@ int main(int argc, char** argv) {
 					//wrozki
 					for (int k = 1; k <= ILOSC_WROZEK; k++) {
 						int start_showing = k * ODL_POM_WROZKAMI;
-						int end_showing = k* ODL_POM_WROZKAMI + SCREEN_WIDTH + losowa_odleglosc+30;
+						int end_showing = k* ODL_POM_WROZKAMI +SCREEN_WIDTH + game.losowa_odleglosc+30;
 
 						if (start_showing < frames && frames < end_showing) {
 							
 							if (wrozka_zostala_zebrana[k] == 0) {
 
-								int X = start_showing + SCREEN_WIDTH - frames + losowa_odleglosc;
+								int X = start_showing +SCREEN_WIDTH - frames + game.losowa_odleglosc;
 								
 								int Y = sprite.girls.obszar[k].y;
 								sprite.girls.setNewRectsPosition(X, Y, k);
@@ -996,35 +834,35 @@ int main(int argc, char** argv) {
 									if (SDL_HasIntersection(&sprite.unicorn.obszar, &sprite.girls.obszar[k])) { // zebranie wrozki
 										wrozka_zostala_zebrana[k] = 1;
 										kolejna_wrozka_zebrana++;
-										bonusowe_punkty_wrozka = 10 * kolejna_wrozka_zebrana;
-										punkty += bonusowe_punkty_wrozka;
+										game.bonusowe_punkty_wrozka = 10 * kolejna_wrozka_zebrana;
+										punkty += game.bonusowe_punkty_wrozka;
 										printf("wrozka zdobyta %d \n", k);
-										sprite.girls.obszar[k].x = SCREEN_WIDTH;
-										czas_bonusowy_napis = 0;
+										sprite.girls.obszar[k].x =SCREEN_WIDTH;
+										game.czas_bonusowy_napis = 0;
 									}
 
-									if (girl_moved < max_girl_move) {
-										girl_moved++;
-										if (girl_moved % 2) {
-											if (girl_moved < max_girl_move / 2)  sprite.girls.changeRectsPosition(0, -1, k);
+									if (game.girl_moved < game.max_girl_move) {
+										game.girl_moved++;
+										if (game.girl_moved % 2) {
+											if (game.girl_moved < game.max_girl_move / 2)  sprite.girls.changeRectsPosition(0, -1, k);
 											else sprite.girls.changeRectsPosition(0, 1, k);
 										}
 									}
 
 									else {
-										girl_moved = 0;
+										game.girl_moved = 0;
 										srand((unsigned)time(0));
-										max_girl_move = 100 + (rand() % 100);
+										game.max_girl_move = 100 + (rand() % 100);
 									}
 
-									if (sprite.girls.obszar[k].y <= 50) girl_moved = max_girl_move / 2; // ograniczenie pionowych ruchow wrozki
-									else if (sprite.girls.obszar[k].y >= SURFACE_HEIGHT) girl_moved = 0;
+									if (sprite.girls.obszar[k].y <= 50) game.girl_moved = game.max_girl_move / 2; // ograniczenie pionowych ruchow wrozki
+									else if (sprite.girls.obszar[k].y >= SURFACE_HEIGHT) game.girl_moved = 0;
 
 									//DrawRectangle(screen, sprite.girls.obszar[k].x, sprite.girls.obszar[k].y, sprite.girls.obszar[k].w, sprite.girls.obszar[k].h, czerwony, niebieski);
-									SDL_BlitSurface(sprite.girls.obraz, NULL, screen, &sprite.girls.obszar[k]);
+									SDL_BlitSurface(sprite.girls.obraz, NULL,SDL.screen, &sprite.girls.obszar[k]);
 								}
 								if (sprite.girls.obszar[k].x <= 0) {
-									kolejna_wrozka_zebrana = 0;
+									UnicornVar.kolejna_wrozka_zebrana = 0;
 									printf("ominieta wrozka %d \n", k);
 								}
 								
@@ -1036,7 +874,7 @@ int main(int argc, char** argv) {
 #endif
 #ifndef delfiny
 					for(int k=1;k<=ILOSC_DELFINOW; k++)
-						if (punkty > k * ILOSC_PUNKTOW_NA_DELFINA) {
+						if (UnicornVar.punkty > k * ILOSC_PUNKTOW_NA_DELFINA) {
 							
 							sprite.doplhins.changeRectsPosition(1, 0, k);
 							
@@ -1044,133 +882,106 @@ int main(int argc, char** argv) {
 							if(sprite.doplhins.obszar[k].x<SCREEN_WIDTH/2) sprite.doplhins.changeRectsPosition(0, -1, k);
 							else sprite.doplhins.changeRectsPosition(0, 1, k);
 
-							if (sprite.doplhins.obszar[k].x == SCREEN_WIDTH) {
+							if (sprite.doplhins.obszar[k].x ==SCREEN_WIDTH) {
 								bool zeroTimers = true;
-								sprite.doplhins.setNewRectsPosition(0, SCREEN_HEIGHT, k , zeroTimers);
+								sprite.doplhins.setNewRectsPosition(0,SCREEN_HEIGHT, k , zeroTimers);
 							}
 
-							sprite.doplhins.animateMultipleRects(0.35,delta,screen,1,k);
+							sprite.doplhins.animateMultipleRects(0.35,game.delta,SDL.screen,1,k);
 
 						}
 
 #endif
 #ifndef infoText
 					// tekst informacyjny
-					DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-					sprintf(text, "Czas trwania = %.1lf s", worldTime);
-					DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-					sprintf(text, "Punkty: %d", punkty);
-					DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
+					DrawRectangle(SDL.screen, 4, 4,SCREEN_WIDTH - 8, 36, game.czerwony, game.niebieski);
+					sprintf(game.text, "Czas trwania = %.1lf s", game.worldTime);
+					DrawString(SDL.screen,SDL.screen->w / 2 - strlen(game.text) * 8 / 2, 10, game.text, SDL.charset);
+					sprintf(game.text, "Punkty: %d", UnicornVar.punkty);
+					DrawString(SDL.screen,SDL.screen->w / 2 - strlen(game.text) * 8 / 2, 26, game.text, SDL.charset);
 
 					//prezentacja punktow bonusowych
-					if (bonusowe_punkty_gwiazda != 0 || bonusowe_punkty_wrozka != 0){
+					if (game.bonusowe_punkty_gwiazda != 0 || game.bonusowe_punkty_wrozka != 0){
 						int bonusowe_punkty;
-						if (bonusowe_punkty_gwiazda != 0) bonusowe_punkty = bonusowe_punkty_gwiazda;
-						else bonusowe_punkty = bonusowe_punkty_wrozka;
+						if (game.bonusowe_punkty_gwiazda != 0) bonusowe_punkty = game.bonusowe_punkty_gwiazda;
+						else bonusowe_punkty = game.bonusowe_punkty_wrozka;
 
-						czas_bonusowy_napis += delta;
+						game.czas_bonusowy_napis += game.delta;
 
-						if (czas_bonusowy_napis >= 1) {
-							czas_bonusowy_napis = 0;
-							bonusowe_punkty_gwiazda = 0;
-							bonusowe_punkty_wrozka = 0;
+						if (game.czas_bonusowy_napis >= 1) {
+							game.czas_bonusowy_napis = 0;
+							game.bonusowe_punkty_gwiazda = 0;
+							game.bonusowe_punkty_wrozka = 0;
 						}
 						else {
-							sprintf(text, "+%d", bonusowe_punkty);
-							DrawString(screen, sprite.unicorn.obszar.x / 2 + sprite.unicorn.obszar.w/2 , sprite.unicorn.obszar.y-10, text, charset);
+							sprintf(game.text, "+%d", bonusowe_punkty);
+							DrawString(SDL.screen, sprite.unicorn.obszar.x / 2 + sprite.unicorn.obszar.w/2 , sprite.unicorn.obszar.y-10, game.text, SDL.charset);
 						}
 					}
 #endif
 					//DrawRectangle(screen, sprite.unicorn.obszar.x, sprite.unicorn.obszar.y, sprite.unicorn.obszar.w, sprite.unicorn.obszar.h, czerwony, niebieski);
 					
-					frames += mnoznik_przyspieszenia;
+					game.frames += UnicornVar.mnoznik_przyspieszenia;
 
-					if (frames % 200 == 0) punkty += 10;
+					if (game.frames % 200 == 0) UnicornVar.punkty += 10;
 				}
 				else{
-					sprite.unicorn.animate(0.2, delta, screen, 6, &sprite_over);
-					if (sprite_over == true) {
-						explosion_animation = false;
-						lives--;
+					sprite.unicorn.animate(0.2, game.delta,SDL.screen, 6, &UnicornVar.show_game_over);
+					if (UnicornVar.show_game_over == true) {
+						game.explosion_animation = false;
+						UnicornVar.lives--;
 					}
 				}
 
-				update_the_screen(screen, scrtex, renderer);
+				update_the_screen(&SDL);
+
 				//rozszerzanie mapy
-				if (frames > SZEROKOSC_MAPY_BMP) {
-					frames = 0;
-					mnoznik_przyspieszenia += 1;
-					ilosc_dodawanych_klatek_w_zrywie += mnoznik_przyspieszenia;
-
-					for (int k = 1; k <= ILOSC_PRZESZKOD; k++) 
-						przeszkoda_zotała_rozbita[k] = 0;
-
-					for (int k = 1; k <= ILOSC_WROZEK; k++) 
-						wrozka_zostala_zebrana[k] = 0;
-
-					srand((unsigned)time(0));
-					losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
-
+				if (game.frames > SZEROKOSC_MAPY_BMP) {
+					setGameValuesForQuikcerPace(&game);
+					setUnicornValuesForQuikcerPace(&UnicornVar);
 				}
 
 
-				if (quit) {
-					zwolnienie_powierzchni(screen, scrtex, window, renderer);
+				if (game.quit) {
+					zwolnienie_powierzchni(&SDL);
 					return 0;
 				}
 			}
 			else {
-				while (SDL_PollEvent(&event)) {
-					switch (event.type) {
+				while (SDL_PollEvent(&SDL.event)) {
+					switch (SDL.event.type) {
 					case SDL_KEYDOWN:
-						if (event.key.keysym.sym == SDLK_ESCAPE) quit = true; 
+						if (SDL.event.key.keysym.sym == SDLK_ESCAPE) game.quit = true; 
+						else if (SDL.event.key.keysym.sym == SDLK_n) {
 
-						//nowa gra
-						else if (event.key.keysym.sym == SDLK_n) {
-							sprite_over = false;
-							frames = 0;
-							punkty = 0;
-							mnoznik_przyspieszenia = 1;
-							jump = 0;
-							isJumping = 0;
-							isFalling = 0;
-
-							kolejna_gwiazda_rozbita = 0;
-							kolejna_wrozka_zebrana = 0;
-
-							zryw = 5;
-							dlugosc_klatek_zrywu = 0;
-							ilosc_dodawanych_klatek_w_zrywie = mnoznik_przyspieszenia;
-
-							createSprites(&Init, &sprite, czarny);
-
-							srand((unsigned)time(0));
-							losowa_odleglosc = (rand() % LOSOWANIE_ODLEGLOSCI);
-							worldTime = 0;
+							setGameInitialValues(&game, &SDL);
+							setUnicornInitialValues(&UnicornVar);
+							
+							createSprites(&Init, &sprite, game.czarny);
 						}
 					break;
 
 					case SDL_QUIT:
-						quit = true;
-						begin = true;
+						game.quit = true;
+						game.begin = true;
 					break;
 
 					};
 				};
 
-				DrawSurface(screen, click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+				DrawSurface(SDL.screen, SDL.click_to_play,SCREEN_WIDTH / 2,SCREEN_HEIGHT / 2);
 
-				DrawRectangle(screen, 4, 4, SCREEN_WIDTH - 8, 36, czerwony, niebieski);
-				sprintf(text, "Punkty: %d", punkty); 
-				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
-				sprintf(text, "Pozostalych szans na spelnienie marzen: %d.", lives);
-				DrawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
+				DrawRectangle(SDL.screen, 4, 4,SCREEN_WIDTH - 8, 36, game.czerwony, game.niebieski);
+				sprintf(game.text, "Punkty: %d", UnicornVar.punkty);
+				DrawString(SDL.screen,SDL.screen->w / 2 - strlen(game.text) * 8 / 2, 10, game.text, SDL.charset);
+				sprintf(game.text, "Pozostalych szans na spelnienie marzen: %d.", UnicornVar.lives);
+				DrawString(SDL.screen,SDL.screen->w / 2 - strlen(game.text) * 8 / 2, 26, game.text, SDL.charset);
 
 
-				update_the_screen(screen, scrtex, renderer);
+				update_the_screen(&SDL);
 
-				if (quit) {
-					zwolnienie_powierzchni(screen, scrtex, window, renderer);
+				if (game.quit) {
+					zwolnienie_powierzchni(&SDL);
 					return 0;
 				}
 
@@ -1178,17 +989,25 @@ int main(int argc, char** argv) {
 		}
 
 		////ilosc zyc ==0 --> przejdz do menu glownego
-		begin = false;
+		game.begin = false;
 
 	}
 
 }
 
-int initializeSDL() {
+int initializeSDL(gameSet *game, SDLSet *SDL) {
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
 		printf("SDL_Init error: %s\n", SDL_GetError());
 		return 1;
 	}
+	
+	//	game.rc = SDL_CreateWindowAndRenderer(0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &renderer);
+	game->rc = SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &SDL->window, &SDL->renderer);
+	SetUpWindow(SDL->window, SDL->renderer, &game->rc);
+	SDL->screen = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+	SDL->scrtex = SDL_CreateTexture(SDL->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+
 }
 
 int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int* rc) {
@@ -1198,17 +1017,17 @@ int SetUpWindow(SDL_Window* window, SDL_Renderer* renderer, int* rc) {
 		return 1;
 	};
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-	SDL_RenderSetLogicalSize(renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
+	SDL_RenderSetLogicalSize(renderer,SCREEN_WIDTH,SCREEN_HEIGHT);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_SetWindowTitle(window, "Robot Unicorn Attack");
 	SDL_ShowCursor(SDL_DISABLE);
 }
 
 
-int checkSurface(SDL_Surface* surface, SDL_Surface* screen, SDL_Texture* scrtex, SDL_Window* window, SDL_Renderer* renderer) {
+int checkSurface(SDL_Surface* surface,  SDLSet* SDL){
 	if (surface == NULL) {
-		printf("SDL_LoadBMP(click_to_play.bmp) error: %s\n", SDL_GetError());
-		zwolnienie_powierzchni(screen, scrtex, window, renderer);
+		printf("SDL_LoadBMP error: %s\n", SDL_GetError());
+		zwolnienie_powierzchni(SDL);
 		return 1;
 	};
 }
@@ -1220,38 +1039,38 @@ void setInitialPositions(positions* Init) {
 	Init->unicorn.w = SZEROKOSC_KONIA;
 	Init->unicorn.h = WYSOKOSC_KONIA;
 
-	Init->stars.x = SCREEN_WIDTH;
+	Init->stars.x =SCREEN_WIDTH;
 	Init->stars.y = SURFACE_HEIGHT - ROZMIAR_PRZESZKODY;
 	Init->stars.w = ROZMIAR_PRZESZKODY;
 	Init->stars.h = ROZMIAR_PRZESZKODY;
 
-	Init->girls.x = SCREEN_WIDTH;
+	Init->girls.x =SCREEN_WIDTH;
 	Init->girls.y = 180 - 15;
 	Init->girls.w = ROZMIAR_WROZKI;
 	Init->girls.h = ROZMIAR_WROZKI;
 
-	Init->stalactites.x = SCREEN_WIDTH;
+	Init->stalactites.x =SCREEN_WIDTH;
 	Init->stalactites.y = 40;
 	Init->stalactites.w = 55;
 	Init->stalactites.h = 60; // trzeba wydluzyc
 
-	Init->holes.x = SCREEN_WIDTH;
-	Init->holes.y = SCREEN_HEIGHT;
+	Init->holes.x =SCREEN_WIDTH;
+	Init->holes.y =SCREEN_HEIGHT;
 	Init->holes.w = SZEROKOSC_DZIURY;
-	Init->holes.h = SCREEN_HEIGHT - SURFACE_HEIGHT;
+	Init->holes.h =SCREEN_HEIGHT - SURFACE_HEIGHT;
 
-	Init->holeend.x = SCREEN_WIDTH;
-	Init->holeend.y = SCREEN_HEIGHT;
+	Init->holeend.x =SCREEN_WIDTH;
+	Init->holeend.y =SCREEN_HEIGHT;
 	Init->holeend.w = 10;
 	Init->holeend.h = 100;
 
-	Init->platforms.x = SCREEN_WIDTH;
-	Init->platforms.y = SCREEN_HEIGHT;
+	Init->platforms.x =SCREEN_WIDTH;
+	Init->platforms.y =SCREEN_HEIGHT;
 	Init->platforms.w = SZEROKOSC_DOD_PODLOZA;
 	Init->platforms.h = GRUBOSC_DOD_PODLOZA;
 
 	Init->doplhins.x = 45;
-	Init->doplhins.y = SCREEN_HEIGHT;
+	Init->doplhins.y =SCREEN_HEIGHT;
 	Init->doplhins.w = 90;
 	Init->doplhins.h = 90;
 }
@@ -1287,4 +1106,137 @@ void createSprites(positions* Init, SpriteSet* sprite, int backgroundColor) {
 	sprite->doplhins.hideBackgroundColor(backgroundColor);
 	sprite->doplhins.setRectsAnimation(numberOfDolphinsAnimations);
 
+}
+
+
+void MenuControlling(gameSet *game, SDLSet *SDL) {
+
+	while (SDL_PollEvent(&SDL->event)) {
+		switch (SDL->event.type) {
+		case SDL_KEYDOWN:
+			if (SDL->event.key.keysym.sym == SDLK_ESCAPE) {
+				game->quit = true;
+				game->begin = true;
+			}
+			else if (SDL->event.key.keysym.sym == SDLK_n) game->begin = true;
+			break;
+
+		case SDL_QUIT:
+			game->quit = true;
+			game->begin = true;
+			break;
+
+		};
+	}
+}
+
+void calculateTime(gameSet* game) {
+	int t2 = SDL_GetTicks();
+	game->delta = (t2 - game->t1) * 0.001;
+	game->t1 = t2;
+	game->worldTime += game->delta;
+}
+
+void loadBackgroundSurfaces(gameSet* game, SDLSet* SDL) {
+	checkSurface(SDL->charset, SDL);
+	SDL_SetColorKey(SDL->charset, true, game->czarny);
+
+	checkSurface(SDL->click_to_play, SDL);
+	checkSurface(SDL->tlo_tecza, SDL);
+	checkSurface(SDL->map, SDL);
+
+	checkSurface(SDL->ikonka_zycia, SDL);
+	SDL_SetColorKey(SDL->ikonka_zycia, true, game->czarny);
+}
+
+void MenuDisplay(gameSet* game, SDLSet* SDL) {
+	DrawSurface(SDL->screen, SDL->click_to_play, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+	DrawRectangle(SDL->screen, 4, 4, SCREEN_WIDTH - 8, 36, game->czerwony, game->niebieski);
+
+	sprintf(game->text, "Witamy w grze Robot Unicorn Attack!");
+	DrawString(SDL->screen, SDL->screen->w / 2 - strlen(game->text) * 8 / 2, 10, game->text, SDL->charset);
+	sprintf(game->text, "Wcisnij n zeby spelnić swoje marzenia!");
+	DrawString(SDL->screen, SDL->screen->w / 2 - strlen(game->text) * 8 / 2, 26, game->text, SDL->charset);
+
+	update_the_screen(SDL);
+}
+
+void setControlKeys(gameSet* game) {
+	if (game->control_with_arrows) game->control_with_arrows = false;
+	else game->control_with_arrows = true;
+}
+
+void unicornJumps(unicornSet* UnicornVar, SpriteSet* sprite) {
+	if (UnicornVar->isJumping == 0) {
+		UnicornVar->isJumping = 1;
+
+	}
+	else if (UnicornVar->isJumping == 1 && UnicornVar->isFalling == 1) {
+		UnicornVar->isJumping = 2;
+	}
+	sprite->unicorn.zeroAnimationFrame(2, 3);
+}
+
+void unicornDashes(unicornSet* UnicornVar) {
+	if (UnicornVar->zryw == 5) {
+		UnicornVar->zryw = 2;
+
+		if (UnicornVar->jump > 0) {
+			UnicornVar->isJumping = 1;
+			UnicornVar->isFalling = 1;
+		}
+		if (UnicornVar->jump == 0) {
+			UnicornVar->isJumping = 0;
+			UnicornVar->isFalling = 0;
+		}
+	}
+}
+
+void unicornFallsAfterJump(unicornSet* UnicornVar, SpriteSet* sprite) {
+	UnicornVar->isFalling++;
+	if (UnicornVar->isFalling == 3)
+		UnicornVar->isFalling = 2;
+	if (UnicornVar->isFalling == 1 && UnicornVar->jump == 0)
+		UnicornVar->isFalling = 0;
+	sprite->unicorn.setJumpAnimationFrame();
+}
+
+void unicornReturnsAfterDash(unicornSet* UnicornVar) {
+	UnicornVar->zryw = 3;
+}
+
+void gameControlling(gameSet* game, SDLSet* SDL, unicornSet* UnicornVar, SpriteSet* sprite) {
+	while (SDL_PollEvent(&SDL->event)) {
+		switch (SDL->event.type) {
+		case SDL_KEYDOWN:
+			if (SDL->event.key.keysym.sym == SDLK_ESCAPE) game->quit = true;
+			else if (SDL->event.key.keysym.sym == SDLK_d) setControlKeys(game);
+
+			else if (game->control_with_arrows) {
+				if (SDL->event.key.keysym.sym == SDLK_UP) unicornJumps(UnicornVar, sprite);
+				else if (SDL->event.key.keysym.sym == SDLK_RIGHT) unicornDashes(UnicornVar);
+			}
+
+			else if (!game->control_with_arrows) {
+				if (SDL->event.key.keysym.sym == SDLK_z) unicornJumps(UnicornVar, sprite);
+				else if (SDL->event.key.keysym.sym == SDLK_x) unicornDashes(UnicornVar);
+			}
+			break;
+
+		case SDL_KEYUP:
+			if (game->control_with_arrows) {
+				if (SDL->event.key.keysym.sym == SDLK_UP) unicornFallsAfterJump(UnicornVar, sprite);
+				else if (SDL->event.key.keysym.sym == SDLK_RIGHT) unicornReturnsAfterDash(UnicornVar);
+			}
+
+			if (!game->control_with_arrows) {
+				if (SDL->event.key.keysym.sym == SDLK_z)unicornFallsAfterJump(UnicornVar, sprite);
+				else if (SDL->event.key.keysym.sym == SDLK_x) unicornReturnsAfterDash(UnicornVar);
+			}
+			break;
+		case SDL_QUIT:
+			game->quit = true;
+			break;
+		};
+	};
 }
